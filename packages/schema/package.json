@@ -1,0 +1,21 @@
+{
+  "name": "@demoscope/schema",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/types.js",
+  "types": "dist/types.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
+    },
+    "./steps.schema.json": "./steps.schema.json"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
