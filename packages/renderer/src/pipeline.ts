@@ -17,13 +17,19 @@ export async function renderPipeline(
   const manifest: CaptureManifest = JSON.parse(raw);
 
   const { width: vw, height: vh } = manifest.meta.viewport;
-  // Account for deviceScaleFactor=2 in screenshots
-  const scale = 2;
-  const scaledVw = vw * scale;
-  const scaledVh = vh * scale;
 
-  const outputWidth = config.width ?? vw;
-  const outputHeight = Math.round(outputWidth * (vh / vw));
+  // Read actual image dimensions from first frame to detect true scale
+  const firstImagePath = join(captureDir, manifest.frames[0].path);
+  const firstImageMeta = await sharp(await readFile(firstImagePath)).metadata();
+  const actualImgW = firstImageMeta.width!;
+  const actualImgH = firstImageMeta.height!;
+  const scale = Math.round(actualImgW / vw) || 2;
+  const scaledVw = actualImgW;
+  const scaledVh = actualImgH;
+
+  // Force even dimensions (h264 requirement)
+  const outputWidth = toEven(config.width ?? vw);
+  const outputHeight = toEven(Math.round(outputWidth * (actualImgH / actualImgW)));
 
   const transitionMs = config.zoomTransitionMs ?? 500;
   const timeline = buildRenderTimeline(manifest, transitionMs);
@@ -71,7 +77,7 @@ export async function renderPipeline(
     outputPath: config.outputPath,
     format: config.format,
     fps: config.fps,
-    width: config.format === "gif" ? Math.min(outputWidth, 960) : undefined,
+    width: config.format === "gif" ? toEven(Math.min(outputWidth, 960)) : undefined,
   });
 
   console.log(`Output written to ${config.outputPath}`);
@@ -144,4 +150,10 @@ async function renderSingleFrame(
     `render-${String(outputIndex).padStart(4, "0")}.png`
   );
   await img.png().toFile(outputPath);
+}
+
+/** Round to nearest even number (h264 requires even width/height) */
+function toEven(n: number): number {
+  const rounded = Math.round(n);
+  return rounded % 2 === 0 ? rounded : rounded + 1;
 }

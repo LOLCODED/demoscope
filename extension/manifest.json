@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Demoscope Recorder",
+  "version": "0.2.0",
+  "description": "Record browser interactions with screenshots and export as demoscope capture bundles",
+  "permissions": ["activeTab", "tabs", "storage", "downloads"],
+  "action": {
+    "default_popup": "src/popup.html"
+  },
+  "background": {
+    "service_worker": "src/background.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content.ts"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {}
+}

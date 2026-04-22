@@ -31,7 +31,7 @@
           "id": { "type": "string" },
           "action": {
             "type": "string",
-            "enum": ["navigate", "click", "type", "scroll", "wait", "hover", "select"]
+            "enum": ["navigate", "click", "type", "scroll", "wait", "hover", "select", "keypress"]
           },
           "annotation": { "type": "string" },
           "wait": { "type": "integer", "minimum": 0 },
@@ -50,7 +50,8 @@
           "typeDelay": { "type": "integer", "minimum": 0 },
           "deltaY": { "type": "number" },
           "duration": { "type": "integer", "minimum": 0 },
-          "value": { "type": "string" }
+          "value": { "type": "string" },
+          "key": { "type": "string" }
         }
       }
     }

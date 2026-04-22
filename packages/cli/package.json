@@ -13,7 +13,8 @@
     "@demoscope/renderer": "*",
     "@demoscope/runner": "*",
     "@demoscope/schema": "*",
-    "commander": "^13.0.0"
+    "commander": "^13.0.0",
+    "fflate": "^0.8.2"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
