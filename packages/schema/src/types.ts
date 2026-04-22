@@ -98,6 +98,8 @@ export interface CapturedFrame {
   };
   annotation?: string;
   isClick?: boolean;
+  /** Text the user typed for this step — drives the progressive typing animation. */
+  typedText?: string;
 }
 
 export interface CaptureManifest {
@@ -115,4 +117,12 @@ export interface RenderConfig {
   outputPath: string;
   zoomTransitionMs?: number;
   cursorSize?: number;
+  /** Base hold time per captured step in ms */
+  holdMs?: number;
+  /** Hold time for steps that display an annotation in ms */
+  annotationHoldMs?: number;
+  /** Hold time for the very first captured step (intro breathing room) in ms */
+  introHoldMs?: number;
+  /** Whether to render annotation overlays (default true) */
+  showAnnotations?: boolean;
 }

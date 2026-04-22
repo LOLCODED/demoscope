@@ -1,36 +1,35 @@
 import sharp from "sharp";
 
-const CURSOR_SIZE = 24;
+export const DEFAULT_CURSOR_SIZE = 24;
+const VIEWBOX_SIZE = 24;
 
-function cursorSvg(isClick: boolean): Buffer {
-  const color = isClick ? "#2563eb" : "#000000";
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CURSOR_SIZE}" height="${CURSOR_SIZE}" viewBox="0 0 24 24">
-    <defs>
-      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-        <feDropShadow dx="1" dy="1" stdDeviation="1" flood-opacity="0.3"/>
-      </filter>
-    </defs>
-    <polygon points="2,2 2,18 7,14 12,20 14,19 9,13 16,12" fill="${color}" stroke="white" stroke-width="1" filter="url(#shadow)"/>
+// Hotspot (tip) in SVG coords for each cursor shape.
+// Arrow: top-left point of the polygon.
+// Hand:  top-center of the extended index finger.
+const ARROW_TIP = { x: 2, y: 2 };
+const HAND_TIP = { x: 12, y: 2 };
+
+const SHADOW_DEFS = `<defs>
+  <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="1" dy="1" stdDeviation="1" flood-opacity="0.3"/>
+  </filter>
+</defs>`;
+
+function arrowSvg(size: number): Buffer {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}">
+    ${SHADOW_DEFS}
+    <polygon points="2,2 2,18 7,14 12,20 14,19 9,13 16,12" fill="#111111" stroke="white" stroke-width="1" filter="url(#shadow)"/>
   </svg>`;
   return Buffer.from(svg);
 }
 
-/**
- * Animated click ring that expands and fades.
- * progress: 0 = just clicked (small, opaque), 1 = fully expanded (large, transparent)
- */
-function clickRingSvg(progress: number): Buffer {
-  const minRadius = 6;
-  const maxRadius = 30;
-  const radius = minRadius + (maxRadius - minRadius) * progress;
-  const opacity = 0.6 * (1 - progress);
-  const strokeWidth = 2.5 * (1 - progress * 0.5);
-
-  const size = Math.ceil(radius * 2 + strokeWidth + 4);
-  const center = size / 2;
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-    <circle cx="${center}" cy="${center}" r="${radius}" fill="rgba(37,99,235,${opacity * 0.15})" stroke="rgba(37,99,235,${opacity})" stroke-width="${strokeWidth}"/>
+// Simplified pointing hand: extended index finger + hand/palm below.
+// Outlined in white so it reads on any background.
+function handSvg(size: number): Buffer {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}">
+    ${SHADOW_DEFS}
+    <path d="M 11 2 L 13 2 L 13 12.5 L 17 12.5 L 18 13.5 L 18 21 L 17 22 L 7 22 L 6 21 L 6 13.5 L 7 12.5 L 11 12.5 Z"
+      fill="#2563eb" stroke="white" stroke-width="1" filter="url(#shadow)"/>
   </svg>`;
   return Buffer.from(svg);
 }
@@ -40,37 +39,18 @@ export async function composeCursor(
   cursorX: number,
   cursorY: number,
   isClick: boolean,
-  clickProgress?: number
+  size: number = DEFAULT_CURSOR_SIZE
 ): Promise<sharp.Sharp> {
-  const composites: sharp.OverlayOptions[] = [];
-
-  // Add animated click ring
-  if (isClick && clickProgress !== undefined) {
-    const progress = Math.max(0, Math.min(1, clickProgress));
-    const ringBuffer = clickRingSvg(progress);
-    // Parse the SVG size back out (it's variable based on progress)
-    const minRadius = 6;
-    const maxRadius = 30;
-    const radius = minRadius + (maxRadius - minRadius) * progress;
-    const strokeWidth = 2.5 * (1 - progress * 0.5);
-    const size = Math.ceil(radius * 2 + strokeWidth + 4);
-
-    composites.push({
-      input: ringBuffer,
-      left: Math.max(0, Math.round(cursorX - size / 2)),
-      top: Math.max(0, Math.round(cursorY - size / 2)),
-    });
-  }
-
-  // Add cursor
-  const cursorBuffer = cursorSvg(isClick && (clickProgress ?? 0) < 0.5);
-  composites.push({
-    input: cursorBuffer,
-    left: Math.max(0, Math.round(cursorX)),
-    top: Math.max(0, Math.round(cursorY)),
-  });
-
-  return frame.composite(composites);
+  const tip = isClick ? HAND_TIP : ARROW_TIP;
+  const scale = size / VIEWBOX_SIZE;
+  const buffer = isClick ? handSvg(size) : arrowSvg(size);
+  return frame.composite([
+    {
+      input: buffer,
+      left: Math.max(0, Math.round(cursorX - tip.x * scale)),
+      top: Math.max(0, Math.round(cursorY - tip.y * scale)),
+    },
+  ]);
 }
 
 /**

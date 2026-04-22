@@ -44,19 +44,25 @@ startBtn.addEventListener("click", async () => {
 
   const title = titleInput.value.trim() || "Recording";
 
-  // Tell background to start (this always works)
-  chrome.runtime.sendMessage({
-    type: "start-recording",
-    tabId: tab.id,
-    title,
-  });
+  // Wait for the background to finish initializing its recording state before
+  // we tell the content script to start emitting events, otherwise the very
+  // first "navigate" capture can arrive before recording state exists and
+  // silently drop.
+  try {
+    await chrome.runtime.sendMessage({
+      type: "start-recording",
+      tabId: tab.id,
+      title,
+    });
+  } catch (err) {
+    console.error("Background start failed:", err);
+    return;
+  }
 
-  // Tell content script to start — may fail if page doesn't allow content scripts
   chrome.tabs.sendMessage(tab.id, { type: "start-recording" }).catch((err) => {
     console.warn("Content script not available:", err.message);
   });
 
-  // Switch UI immediately
   showRecording();
   stepCountEl.textContent = "0";
 });
