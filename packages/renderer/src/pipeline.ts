@@ -125,7 +125,8 @@ async function renderSingleFrame(
     img,
     relCursorX,
     relCursorY,
-    renderFrame.isClick
+    renderFrame.isClick,
+    renderFrame.clickProgress
   );
 
   // Add annotation if present

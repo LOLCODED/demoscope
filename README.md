@@ -1,6 +1,6 @@
 # demoscope
 
-Create polished product walkthrough videos from JSON step definitions. Define clicks, typing, scrolling, and navigation — demoscope replays them in a browser, captures frames with auto-zoom and animated cursors, and encodes to MP4 or GIF.
+Create polished product walkthrough videos from step definitions (JSON or YAML). Define clicks, typing, scrolling, and navigation — demoscope replays them in a browser, captures frames with auto-zoom, smooth cursor motion, and animated click effects, then encodes to MP4 or GIF.
 
 ## Prerequisites
 
@@ -49,7 +49,9 @@ node packages/cli/dist/index.js render ./capture -o demo.gif -f gif
 
 ## Writing step files
 
-A step file is JSON with a `meta` block and a `steps` array:
+Step files can be JSON or YAML. Both use the same structure: a `meta` block and a `steps` array.
+
+**JSON:**
 
 ```json
 {
@@ -65,6 +67,32 @@ A step file is JSON with a `meta` block and a `steps` array:
     { "action": "wait", "duration": 1000, "annotation": "Done!" }
   ]
 }
+```
+
+**YAML:**
+
+```yaml
+meta:
+  baseUrl: http://localhost:3000
+  viewport:
+    width: 1280
+    height: 720
+  defaultWait: 500
+
+steps:
+  - action: navigate
+    url: /dashboard
+  - action: click
+    selector: "#login-btn"
+    zoom:
+      level: 2.0
+  - action: type
+    selector: "#email"
+    text: user@example.com
+    typeDelay: 80
+  - action: wait
+    duration: 1000
+    annotation: Done!
 ```
 
 ### Actions
@@ -88,4 +116,4 @@ A step file is JSON with a `meta` block and a `steps` array:
 | `wait` | Milliseconds to wait after the action (overrides `defaultWait`) |
 | `id` | Optional step identifier |
 
-See `examples/example-search.json` for a complete working example.
+See `examples/example-search.json` (or `examples/example-search.yaml`) for a complete working example.
