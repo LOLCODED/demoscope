@@ -3,7 +3,7 @@ import { readFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { type CaptureManifest, type RenderConfig } from "@demoscope/schema";
 import { buildRenderTimeline, type RenderFrame } from "./transitions.js";
-import { composeCursor } from "./cursor.js";
+import { composeCursor, DEFAULT_CURSOR_SIZE } from "./cursor.js";
 import { annotationOverlay } from "./annotate.js";
 
 const BATCH_SIZE = 20;
@@ -31,8 +31,15 @@ export async function renderPipeline(
   const outputWidth = toEven(config.width ?? vw);
   const outputHeight = toEven(Math.round(outputWidth * (actualImgH / actualImgW)));
 
-  const transitionMs = config.zoomTransitionMs ?? 500;
-  const timeline = buildRenderTimeline(manifest, transitionMs);
+  const showAnnotations = config.showAnnotations ?? true;
+  const cursorSize = Math.max(8, config.cursorSize ?? DEFAULT_CURSOR_SIZE);
+  const timeline = buildRenderTimeline(manifest, {
+    transitionMs: config.zoomTransitionMs ?? 500,
+    holdMs: config.holdMs ?? 500,
+    annotationHoldMs: config.annotationHoldMs ?? 1500,
+    introHoldMs: config.introHoldMs ?? 1500,
+    showAnnotations,
+  });
 
   const renderedDir = join(captureDir, "rendered");
   await mkdir(renderedDir, { recursive: true });
@@ -56,7 +63,9 @@ export async function renderPipeline(
           scaledVh,
           outputWidth,
           outputHeight,
-          scale
+          scale,
+          showAnnotations,
+          cursorSize
         )
       );
     }
@@ -93,7 +102,9 @@ async function renderSingleFrame(
   scaledVh: number,
   outputWidth: number,
   outputHeight: number,
-  scale: number
+  scale: number,
+  showAnnotations: boolean,
+  cursorSize: number
 ): Promise<void> {
   const sourceFrame = manifest.frames[renderFrame.sourceIndex];
   const imagePath = join(captureDir, sourceFrame.path);
@@ -132,11 +143,11 @@ async function renderSingleFrame(
     relCursorX,
     relCursorY,
     renderFrame.isClick,
-    renderFrame.clickProgress
+    cursorSize
   );
 
-  // Add annotation if present
-  if (renderFrame.annotation) {
+  // Add annotation if enabled and present
+  if (showAnnotations && renderFrame.annotation) {
     const overlay = annotationOverlay(
       renderFrame.annotation,
       outputWidth,

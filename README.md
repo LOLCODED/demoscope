@@ -46,6 +46,13 @@ node packages/cli/dist/index.js render ./capture -o demo.gif -f gif
 | `--width` | Output width in pixels | viewport width |
 | `--headed` | Show browser window while capturing | off |
 | `--transition` | Zoom transition duration (ms) | `500` |
+| `--hold` | Hold time per step (ms) — raise to slow the video down | `500` |
+| `--annotation-hold` | Hold time when a step has an annotation (ms) | `1500` |
+| `--intro-hold` | Hold time on the very first frame (ms) | `1500` |
+| `--cursor-size` | Cursor size in pixels (scales the SVG and its hotspot) | `24` |
+| `--no-annotations` | Hide annotation overlays | annotations shown |
+
+Tip: iterate on pacing without re-recording by re-running `render` on the same `.zip` with different `--hold` / `--annotation-hold` values.
 
 ## Writing step files
 

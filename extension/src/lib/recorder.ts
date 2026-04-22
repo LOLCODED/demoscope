@@ -20,6 +20,7 @@ export type InteractionCallback = (event: {
   stepId: string;
   annotation?: string;
   isClick?: boolean;
+  typedText?: string;
 }) => void;
 
 let steps: RecordedStep[] = [];
@@ -104,6 +105,7 @@ function emitCapture(event: {
   stepId: string;
   annotation?: string;
   isClick?: boolean;
+  typedText?: string;
 }): void {
   onInteraction?.(event);
   notifyBackground();
@@ -243,6 +245,8 @@ function flushPendingType(): void {
     cursorX: lastCursorX,
     cursorY: lastCursorY,
     stepId: step.stepId,
+    annotation: step.text ? `Type "${step.text}"` : undefined,
+    typedText: step.text,
   });
 }
 

@@ -10,6 +10,7 @@ interface CapturedFrame {
   action?: string;
   annotation?: string;
   isClick?: boolean;
+  typedText?: string;
   zoom?: {
     level: number;
     padding: number;
@@ -31,6 +32,10 @@ interface RecordingState {
 
 let recording: RecordingState | null = null;
 
+// Serialize capture handling so rapid events (click → type → keypress) can't
+// race on frameIndex or collide on the captureVisibleTab rate limit.
+let captureQueue: Promise<unknown> = Promise.resolve();
+
 // --- Message handling ---
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -41,12 +46,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       break;
 
     case "stop-recording":
-      handleStop().then(sendResponse);
-      return true; // async response
+      // Wait for any pending captures to finish before closing out.
+      captureQueue
+        .catch(() => {})
+        .then(() => handleStop())
+        .then(sendResponse);
+      return true;
 
-    case "capture-event":
-      handleCaptureEvent(msg, sender.tab?.id).then(sendResponse);
-      return true; // async response
+    case "capture-event": {
+      const next = captureQueue
+        .catch(() => {})
+        .then(() => handleCaptureEvent(msg, sender.tab?.id));
+      captureQueue = next.catch(() => {});
+      next.then(sendResponse, () => sendResponse({ ok: false, frameCount: 0 }));
+      return true;
+    }
 
     case "get-status":
       sendResponse({
@@ -124,6 +138,7 @@ async function handleCaptureEvent(
     stepId?: string;
     annotation?: string;
     isClick?: boolean;
+    typedText?: string;
     viewport: { width: number; height: number };
     baseUrl: string;
   },
@@ -168,6 +183,7 @@ async function handleCaptureEvent(
     action: msg.action,
     annotation: msg.annotation,
     isClick: msg.isClick,
+    typedText: msg.typedText,
     zoom,
   };
 

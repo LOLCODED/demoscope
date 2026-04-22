@@ -45,6 +45,11 @@ program
   .option("--fps <number>", "Frames per second", "30")
   .option("--width <number>", "Output width in pixels")
   .option("--transition <ms>", "Zoom transition duration in ms", "500")
+  .option("--hold <ms>", "Hold time per step (ms)", "500")
+  .option("--annotation-hold <ms>", "Hold time when annotation shown (ms)", "1500")
+  .option("--intro-hold <ms>", "Hold time on the first frame (ms)", "1500")
+  .option("--cursor-size <px>", "Cursor size in pixels", "24")
+  .option("--no-annotations", "Hide annotation overlays")
   .action(
     async (
       input: string,
@@ -54,6 +59,11 @@ program
         fps: string;
         width?: string;
         transition: string;
+        hold: string;
+        annotationHold: string;
+        introHold: string;
+        cursorSize: string;
+        annotations: boolean;
       }
     ) => {
       const format = opts.format as "mp4" | "gif";
@@ -80,6 +90,11 @@ program
           fps: parseInt(opts.fps, 10),
           width: opts.width ? parseInt(opts.width, 10) : undefined,
           zoomTransitionMs: parseInt(opts.transition, 10),
+          holdMs: parseInt(opts.hold, 10),
+          annotationHoldMs: parseInt(opts.annotationHold, 10),
+          introHoldMs: parseInt(opts.introHold, 10),
+          cursorSize: parseInt(opts.cursorSize, 10),
+          showAnnotations: opts.annotations,
         });
       } finally {
         // Clean up extracted zip directory
@@ -102,6 +117,11 @@ program
   .option("--timeout <ms>", "Timeout for waiting on elements (ms)", "10000")
   .option("--fail-fast", "Abort on first step failure instead of skipping")
   .option("--capture-dir <dir>", "Directory for intermediate capture", "./.demoscope-capture")
+  .option("--hold <ms>", "Hold time per step (ms)", "500")
+  .option("--annotation-hold <ms>", "Hold time when annotation shown (ms)", "1500")
+  .option("--intro-hold <ms>", "Hold time on the first frame (ms)", "1500")
+  .option("--cursor-size <px>", "Cursor size in pixels", "24")
+  .option("--no-annotations", "Hide annotation overlays")
   .action(
     async (
       stepfile: string,
@@ -114,6 +134,11 @@ program
         timeout: string;
         failFast?: boolean;
         captureDir: string;
+        hold: string;
+        annotationHold: string;
+        introHold: string;
+        cursorSize: string;
+        annotations: boolean;
       }
     ) => {
       const format = opts.format as "mp4" | "gif";
@@ -139,6 +164,11 @@ program
           format,
           fps,
           width: opts.width ? parseInt(opts.width, 10) : undefined,
+          holdMs: parseInt(opts.hold, 10),
+          annotationHoldMs: parseInt(opts.annotationHold, 10),
+          introHoldMs: parseInt(opts.introHold, 10),
+          cursorSize: parseInt(opts.cursorSize, 10),
+          showAnnotations: opts.annotations,
         });
 
         console.log(`Done! Output: ${opts.output}`);

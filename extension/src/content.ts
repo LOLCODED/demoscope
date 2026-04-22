@@ -53,6 +53,7 @@ function onInteraction(event: {
   stepId: string;
   annotation?: string;
   isClick?: boolean;
+  typedText?: string;
 }): void {
   if (!captureEnabled) return;
 
