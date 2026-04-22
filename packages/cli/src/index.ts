@@ -3,6 +3,8 @@
 import { Command } from "commander";
 import { run } from "@demoscope/runner";
 import { renderPipeline } from "@demoscope/renderer";
+import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
+import { join, extname } from "node:path";
 
 const program = new Command();
 
@@ -18,11 +20,15 @@ program
   .option("-o, --output <dir>", "Output directory for captured frames", "./capture")
   .option("--fps <number>", "Frames per second", "30")
   .option("--headed", "Run browser in headed mode (visible)")
-  .action(async (stepfile: string, opts: { output: string; fps: string; headed?: boolean }) => {
+  .option("--timeout <ms>", "Timeout for waiting on elements (ms)", "10000")
+  .option("--fail-fast", "Abort on first step failure instead of skipping")
+  .action(async (stepfile: string, opts: { output: string; fps: string; headed?: boolean; timeout: string; failFast?: boolean }) => {
     try {
       await run(stepfile, opts.output, {
         fps: parseInt(opts.fps, 10),
         headless: !opts.headed,
+        timeout: parseInt(opts.timeout, 10),
+        skipErrors: !opts.failFast,
       });
     } catch (err) {
       console.error("Run failed:", (err as Error).message);
@@ -32,8 +38,8 @@ program
 
 program
   .command("render")
-  .description("Render captured frames into a video or GIF")
-  .argument("<capturedir>", "Path to capture directory (from `demoscope run`)")
+  .description("Render captured frames into a video or GIF. Accepts a directory or .zip file.")
+  .argument("<input>", "Path to capture directory or .zip file from extension")
   .option("-o, --output <file>", "Output file path", "./output.mp4")
   .option("-f, --format <fmt>", "Output format: mp4 or gif", "mp4")
   .option("--fps <number>", "Frames per second", "30")
@@ -41,7 +47,7 @@ program
   .option("--transition <ms>", "Zoom transition duration in ms", "500")
   .action(
     async (
-      capturedir: string,
+      input: string,
       opts: {
         output: string;
         format: string;
@@ -56,22 +62,34 @@ program
         process.exit(1);
       }
 
+      let extractedDir: string | null = null;
       try {
-        await renderPipeline(capturedir, {
+        let captureDir = input;
+
+        // If input is a zip, extract to a temp directory
+        if (extname(input).toLowerCase() === ".zip") {
+          captureDir = input.replace(/\.zip$/i, "");
+          extractedDir = captureDir;
+          console.log(`Extracting ${input}...`);
+          await extractZip(input, captureDir);
+        }
+
+        await renderPipeline(captureDir, {
           outputPath: opts.output,
           format,
           fps: parseInt(opts.fps, 10),
           width: opts.width ? parseInt(opts.width, 10) : undefined,
           zoomTransitionMs: parseInt(opts.transition, 10),
         });
-      } catch (err) {
-        console.error("Render failed:", (err as Error).message);
-        process.exit(1);
+      } finally {
+        // Clean up extracted zip directory
+        if (extractedDir) {
+          await rm(extractedDir, { recursive: true, force: true }).catch(() => {});
+        }
       }
     }
   );
 
-// Convenience: run + render in one command
 program
   .command("demo")
   .description("Run steps and render to video in one command")
@@ -81,6 +99,8 @@ program
   .option("--fps <number>", "Frames per second", "30")
   .option("--width <number>", "Output width in pixels")
   .option("--headed", "Run browser in headed mode")
+  .option("--timeout <ms>", "Timeout for waiting on elements (ms)", "10000")
+  .option("--fail-fast", "Abort on first step failure instead of skipping")
   .option("--capture-dir <dir>", "Directory for intermediate capture", "./.demoscope-capture")
   .action(
     async (
@@ -91,6 +111,8 @@ program
         fps: string;
         width?: string;
         headed?: boolean;
+        timeout: string;
+        failFast?: boolean;
         captureDir: string;
       }
     ) => {
@@ -107,6 +129,8 @@ program
         await run(stepfile, opts.captureDir, {
           fps,
           headless: !opts.headed,
+          timeout: parseInt(opts.timeout, 10),
+          skipErrors: !opts.failFast,
         });
 
         console.log("Step 2/2: Rendering video...");
@@ -121,8 +145,32 @@ program
       } catch (err) {
         console.error("Demo failed:", (err as Error).message);
         process.exit(1);
+      } finally {
+        // Clean up intermediate capture directory
+        await rm(opts.captureDir, { recursive: true, force: true }).catch(() => {});
       }
     }
   );
+
+async function extractZip(zipPath: string, outDir: string): Promise<void> {
+  const { resolve, normalize } = await import("node:path");
+  const { unzipSync } = await import("fflate");
+  const zipBuffer = await readFile(zipPath);
+  const files = unzipSync(new Uint8Array(zipBuffer));
+
+  const resolvedOut = resolve(outDir);
+
+  for (const [filename, data] of Object.entries(files)) {
+    // Reject path traversal attempts
+    const normalized = normalize(filename);
+    const resolvedFile = resolve(outDir, normalized);
+    if (normalized.startsWith("..") || !resolvedFile.startsWith(resolvedOut + "/") && resolvedFile !== resolvedOut) {
+      throw new Error(`Zip contains unsafe path: ${filename}`);
+    }
+
+    await mkdir(resolvedFile.substring(0, resolvedFile.lastIndexOf("/")), { recursive: true });
+    await writeFile(resolvedFile, data);
+  }
+}
 
 program.parse();

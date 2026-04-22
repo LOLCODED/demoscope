@@ -19,7 +19,8 @@ export type StepAction =
   | ScrollStep
   | WaitStep
   | HoverStep
-  | SelectStep;
+  | SelectStep
+  | KeypressStep;
 
 interface BaseStep {
   id?: string;
@@ -66,6 +67,12 @@ export interface SelectStep extends BaseStep {
   action: "select";
   selector: string;
   value: string;
+}
+
+export interface KeypressStep extends BaseStep {
+  action: "keypress";
+  key: string;
+  selector?: string;
 }
 
 export interface StepFile {

@@ -106,6 +106,7 @@ steps:
 | `wait` | `duration` | Pause for N milliseconds |
 | `hover` | `selector` | Hover over an element |
 | `select` | `selector`, `value` | Select a dropdown option |
+| `keypress` | `key` | Press a key (Enter, Escape, Tab, etc.) |
 
 ### Per-step options
 
@@ -117,3 +118,46 @@ steps:
 | `id` | Optional step identifier |
 
 See `examples/example-search.json` (or `examples/example-search.yaml`) for a complete working example.
+
+## Chrome Extension (Recorder)
+
+Record interactions directly in your browser with screenshots. Works with auth'd pages — the extension captures what you see, no Playwright session needed.
+
+### Build the extension
+
+```bash
+cd extension
+npm install
+npm run build
+```
+
+### Load in Chrome
+
+1. Open `chrome://extensions`
+2. Enable "Developer mode" (top right)
+3. Click "Load unpacked" and select the `extension/dist` directory
+
+### Record a walkthrough
+
+1. Navigate to the page you want to demo (including pages behind login)
+2. Click the Demoscope extension icon
+3. Optionally enter a title, then click **Start Recording**
+4. Interact with the page — clicks, typing, scrolling, key presses, and navigation are captured with screenshots
+5. Click the extension icon again and click **Stop & Export**
+6. Save the downloaded `.zip` file
+
+### Turn it into a video
+
+The zip contains screenshots + a capture manifest. Pass it directly to `demoscope render`:
+
+```bash
+# Render from zip (auto-extracts)
+node packages/cli/dist/index.js render my-recording-capture.zip -o walkthrough.mp4
+
+# Or extract first and render the directory
+unzip my-recording-capture.zip -d ./capture
+node packages/cli/dist/index.js render ./capture -o walkthrough.mp4
+
+# GIF output
+node packages/cli/dist/index.js render my-recording-capture.zip -o walkthrough.gif -f gif
+```
