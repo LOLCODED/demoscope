@@ -49,6 +49,7 @@ program
   .option("--annotation-hold <ms>", "Hold time when annotation shown (ms)", "1500")
   .option("--intro-hold <ms>", "Hold time on the first frame (ms)", "1500")
   .option("--cursor-size <px>", "Cursor size in pixels", "24")
+  .option("--click-cursor <style>", "Cursor shape on click frames: arrow or pointer", "arrow")
   .option("--no-annotations", "Hide annotation overlays")
   .action(
     async (
@@ -63,6 +64,7 @@ program
         annotationHold: string;
         introHold: string;
         cursorSize: string;
+        clickCursor: string;
         annotations: boolean;
       }
     ) => {
@@ -71,6 +73,8 @@ program
         console.error("Format must be mp4 or gif");
         process.exit(1);
       }
+
+      const clickCursor = parseClickCursor(opts.clickCursor);
 
       let extractedDir: string | null = null;
       try {
@@ -94,6 +98,7 @@ program
           annotationHoldMs: parseInt(opts.annotationHold, 10),
           introHoldMs: parseInt(opts.introHold, 10),
           cursorSize: parseInt(opts.cursorSize, 10),
+          clickCursor,
           showAnnotations: opts.annotations,
         });
       } finally {
@@ -121,6 +126,7 @@ program
   .option("--annotation-hold <ms>", "Hold time when annotation shown (ms)", "1500")
   .option("--intro-hold <ms>", "Hold time on the first frame (ms)", "1500")
   .option("--cursor-size <px>", "Cursor size in pixels", "24")
+  .option("--click-cursor <style>", "Cursor shape on click frames: arrow or pointer", "arrow")
   .option("--no-annotations", "Hide annotation overlays")
   .action(
     async (
@@ -138,6 +144,7 @@ program
         annotationHold: string;
         introHold: string;
         cursorSize: string;
+        clickCursor: string;
         annotations: boolean;
       }
     ) => {
@@ -148,6 +155,7 @@ program
       }
 
       const fps = parseInt(opts.fps, 10);
+      const clickCursor = parseClickCursor(opts.clickCursor);
 
       try {
         console.log("Step 1/2: Capturing frames...");
@@ -168,6 +176,7 @@ program
           annotationHoldMs: parseInt(opts.annotationHold, 10),
           introHoldMs: parseInt(opts.introHold, 10),
           cursorSize: parseInt(opts.cursorSize, 10),
+          clickCursor,
           showAnnotations: opts.annotations,
         });
 
@@ -181,6 +190,14 @@ program
       }
     }
   );
+
+function parseClickCursor(value: string): "arrow" | "pointer" {
+  if (value !== "arrow" && value !== "pointer") {
+    console.error(`--click-cursor must be "arrow" or "pointer" (got "${value}")`);
+    process.exit(1);
+  }
+  return value;
+}
 
 async function extractZip(zipPath: string, outDir: string): Promise<void> {
   const { resolve, normalize } = await import("node:path");
