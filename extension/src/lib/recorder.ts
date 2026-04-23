@@ -1,5 +1,17 @@
 import { generateSelector, getElementLabel } from "./selector.js";
 
+// Selector generation must never drop a capture event. If it throws for any
+// reason, fall back to a tag-only selector so the frame is still recorded —
+// a broken selector only hurts replay, but a dropped event is invisible.
+function safeSelector(el: Element): string {
+  try {
+    return generateSelector(el);
+  } catch (err) {
+    console.warn("selector generation failed, using fallback", err);
+    return el.tagName.toLowerCase();
+  }
+}
+
 export interface RecordedStep {
   id: string;
   action: "navigate" | "click" | "type" | "scroll" | "keypress";
@@ -128,7 +140,7 @@ function onClickCapture(e: MouseEvent): void {
   flushPendingType();
   flushPendingScroll();
 
-  const selector = generateSelector(target);
+  const selector = safeSelector(target);
   const label = getElementLabel(target);
   const id = nextId();
 
@@ -163,7 +175,7 @@ function onKeydown(e: KeyboardEvent): void {
   flushPendingType();
 
   const target = e.target as Element | null;
-  const selector = target ? generateSelector(target) : undefined;
+  const selector = target ? safeSelector(target) : undefined;
   const id = nextId();
 
   steps.push({
@@ -188,7 +200,7 @@ function onInput(e: Event): void {
   const target = e.target as HTMLInputElement | HTMLTextAreaElement;
   if (!target || !("value" in target)) return;
 
-  const selector = generateSelector(target);
+  const selector = safeSelector(target);
   const label = getElementLabel(target);
 
   if (pendingType && pendingType.selector === selector) {
@@ -210,7 +222,7 @@ function onScroll(_e: Event): void {
   if (!recording) return;
 
   const target = document.scrollingElement || document.documentElement;
-  const selector = target === document.documentElement ? undefined : generateSelector(target as Element);
+  const selector = target === document.documentElement ? undefined : safeSelector(target as Element);
   const currentTarget = selector || "__page__";
 
   if (scrollTarget !== currentTarget) {

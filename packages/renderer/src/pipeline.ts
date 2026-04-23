@@ -3,7 +3,7 @@ import { readFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { type CaptureManifest, type RenderConfig } from "@demoscope/schema";
 import { buildRenderTimeline, type RenderFrame } from "./transitions.js";
-import { composeCursor, DEFAULT_CURSOR_SIZE } from "./cursor.js";
+import { cursorOverlay, DEFAULT_CURSOR_SIZE, type CursorShape } from "./cursor.js";
 import { annotationOverlay } from "./annotate.js";
 
 const BATCH_SIZE = 20;
@@ -33,6 +33,7 @@ export async function renderPipeline(
 
   const showAnnotations = config.showAnnotations ?? true;
   const cursorSize = Math.max(8, config.cursorSize ?? DEFAULT_CURSOR_SIZE);
+  const clickCursor: CursorShape = config.clickCursor ?? "arrow";
   const timeline = buildRenderTimeline(manifest, {
     transitionMs: config.zoomTransitionMs ?? 500,
     holdMs: config.holdMs ?? 500,
@@ -65,7 +66,8 @@ export async function renderPipeline(
           outputHeight,
           scale,
           showAnnotations,
-          cursorSize
+          cursorSize,
+          clickCursor
         )
       );
     }
@@ -104,7 +106,8 @@ async function renderSingleFrame(
   outputHeight: number,
   scale: number,
   showAnnotations: boolean,
-  cursorSize: number
+  cursorSize: number,
+  clickCursor: CursorShape
 ): Promise<void> {
   const sourceFrame = manifest.frames[renderFrame.sourceIndex];
   const imagePath = join(captureDir, sourceFrame.path);
@@ -122,7 +125,7 @@ async function renderSingleFrame(
   const safeWidth = Math.max(1, Math.round(extractWidth));
   const safeHeight = Math.max(1, Math.round(extractHeight));
 
-  let img = sharp(imageBuffer)
+  const img = sharp(imageBuffer)
     .extract({
       left: Math.round(extractLeft),
       top: Math.round(extractTop),
@@ -137,30 +140,26 @@ async function renderSingleFrame(
   const relCursorY =
     ((renderFrame.cursorY - zoomRect.y) / zoomRect.h) * outputHeight;
 
-  // Compose cursor overlay
-  img = await composeCursor(
-    img,
-    relCursorX,
-    relCursorY,
-    renderFrame.isClick,
-    cursorSize
-  );
-
-  // Add annotation if enabled and present
+  // Collect overlays and composite them in a single call. Sharp's
+  // .composite() replaces prior composite settings when called again,
+  // so stacking them in separate calls would drop the cursor on any
+  // frame that also has an annotation.
+  const shape: CursorShape =
+    renderFrame.isClick && clickCursor === "pointer" ? "pointer" : "arrow";
+  const overlays: sharp.OverlayOptions[] = [
+    cursorOverlay(relCursorX, relCursorY, shape, cursorSize),
+  ];
   if (showAnnotations && renderFrame.annotation) {
-    const overlay = annotationOverlay(
-      renderFrame.annotation,
-      outputWidth,
-      outputHeight
+    overlays.push(
+      annotationOverlay(renderFrame.annotation, outputWidth, outputHeight)
     );
-    img = img.composite([overlay]);
   }
 
   const outputPath = join(
     renderedDir,
     `render-${String(outputIndex).padStart(4, "0")}.png`
   );
-  await img.png().toFile(outputPath);
+  await img.composite(overlays).png().toFile(outputPath);
 }
 
 /** Round to nearest even number (h264 requires even width/height) */

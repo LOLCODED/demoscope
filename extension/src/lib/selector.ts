@@ -1,30 +1,54 @@
+const INTERACTIVE_SELECTOR =
+  "a, button, [role='button'], [role='link'], [role='menuitem'], [role='tab'], input, select, textarea, label, summary";
+
+function interactiveAncestor(el: Element): Element {
+  return el.closest(INTERACTIVE_SELECTOR) ?? el;
+}
+
+function attrSelector(attr: string, value: string): string {
+  const escaped = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `[${attr}="${escaped}"]`;
+}
+
+function matchesUniquely(sel: string): boolean {
+  try {
+    return document.querySelectorAll(sel).length === 1;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Generate a robust CSS selector for a DOM element.
- * Priority: data-testid > id > unique short CSS path.
+ * Priority: data-testid > id > name > aria-label > unique short CSS path.
+ * If the clicked element is a child of an interactive element (e.g. an svg
+ * inside a button), we target the interactive ancestor instead.
  */
 export function generateSelector(el: Element): string {
+  el = interactiveAncestor(el);
+
   // 1. data-testid
   const testId = el.getAttribute("data-testid");
-  if (testId) return `[data-testid="${testId}"]`;
+  if (testId) return attrSelector("data-testid", testId);
 
   // 2. id (if unique on page)
-  if (el.id && document.querySelectorAll(`#${CSS.escape(el.id)}`).length === 1) {
-    return `#${CSS.escape(el.id)}`;
+  if (el.id) {
+    const sel = `#${CSS.escape(el.id)}`;
+    if (matchesUniquely(sel)) return sel;
   }
 
   // 3. name attribute for form elements
   const name = el.getAttribute("name");
   if (name) {
-    const tag = el.tagName.toLowerCase();
-    const sel = `${tag}[name="${name}"]`;
-    if (document.querySelectorAll(sel).length === 1) return sel;
+    const sel = `${el.tagName.toLowerCase()}${attrSelector("name", name)}`;
+    if (matchesUniquely(sel)) return sel;
   }
 
   // 4. aria-label
   const ariaLabel = el.getAttribute("aria-label");
   if (ariaLabel) {
-    const sel = `[aria-label="${ariaLabel}"]`;
-    if (document.querySelectorAll(sel).length === 1) return sel;
+    const sel = attrSelector("aria-label", ariaLabel);
+    if (matchesUniquely(sel)) return sel;
   }
 
   // 5. Build a path from the element up
@@ -38,7 +62,7 @@ function buildCssPath(el: Element): string {
   while (current && current !== document.documentElement) {
     let selector = current.tagName.toLowerCase();
 
-    if (current.id && document.querySelectorAll(`#${CSS.escape(current.id)}`).length === 1) {
+    if (current.id && matchesUniquely(`#${CSS.escape(current.id)}`)) {
       parts.unshift(`#${CSS.escape(current.id)}`);
       break;
     }
@@ -67,11 +91,7 @@ function buildCssPath(el: Element): string {
 
     // Check if we have a unique selector already
     const candidate = parts.join(" > ");
-    try {
-      if (document.querySelectorAll(candidate).length === 1) return candidate;
-    } catch {
-      // selector may be invalid, keep building
-    }
+    if (matchesUniquely(candidate)) return candidate;
 
     current = current.parentElement;
   }
@@ -90,6 +110,7 @@ function isUtilityClass(cls: string): boolean {
 
 /** Get a human-readable label for the element */
 export function getElementLabel(el: Element): string {
+  el = interactiveAncestor(el);
   const text = (el.textContent || "").trim().slice(0, 50);
   const ariaLabel = el.getAttribute("aria-label");
   const placeholder = el.getAttribute("placeholder");

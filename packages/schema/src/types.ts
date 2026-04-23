@@ -125,4 +125,7 @@ export interface RenderConfig {
   introHoldMs?: number;
   /** Whether to render annotation overlays (default true) */
   showAnnotations?: boolean;
+  /** Cursor shape on click frames. "arrow" keeps the pointer consistent;
+   * "pointer" swaps in a hand on click. Default "arrow". */
+  clickCursor?: "arrow" | "pointer";
 }

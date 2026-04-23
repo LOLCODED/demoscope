@@ -34,23 +34,22 @@ function handSvg(size: number): Buffer {
   return Buffer.from(svg);
 }
 
-export async function composeCursor(
-  frame: sharp.Sharp,
+export type CursorShape = "arrow" | "pointer";
+
+export function cursorOverlay(
   cursorX: number,
   cursorY: number,
-  isClick: boolean,
+  shape: CursorShape,
   size: number = DEFAULT_CURSOR_SIZE
-): Promise<sharp.Sharp> {
-  const tip = isClick ? HAND_TIP : ARROW_TIP;
+): sharp.OverlayOptions {
+  const tip = shape === "pointer" ? HAND_TIP : ARROW_TIP;
   const scale = size / VIEWBOX_SIZE;
-  const buffer = isClick ? handSvg(size) : arrowSvg(size);
-  return frame.composite([
-    {
-      input: buffer,
-      left: Math.max(0, Math.round(cursorX - tip.x * scale)),
-      top: Math.max(0, Math.round(cursorY - tip.y * scale)),
-    },
-  ]);
+  const buffer = shape === "pointer" ? handSvg(size) : arrowSvg(size);
+  return {
+    input: buffer,
+    left: Math.max(0, Math.round(cursorX - tip.x * scale)),
+    top: Math.max(0, Math.round(cursorY - tip.y * scale)),
+  };
 }
 
 /**
