@@ -1,15 +1,23 @@
-import { startRecording, stopRecording, isRecording, getSteps } from "./lib/recorder.js";
+import {
+  startRecording,
+  stopRecording,
+  isRecording,
+  getSteps,
+} from "./lib/recorder.js";
 import { exportStepFile } from "./lib/export.js";
 
 let captureEnabled = false;
 
 // On load, check if background is recording this tab and auto-resume
-chrome.runtime.sendMessage({ type: "get-status" }).then((resp) => {
-  if (resp?.recording) {
-    captureEnabled = true;
-    startRecording(onInteraction);
-  }
-}).catch(() => {});
+chrome.runtime
+  .sendMessage({ type: "get-status" })
+  .then((resp) => {
+    if (resp?.recording) {
+      captureEnabled = true;
+      startRecording(onInteraction);
+    }
+  })
+  .catch(() => {});
 
 // Listen for messages from popup/background
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -57,13 +65,15 @@ function onInteraction(event: {
 }): void {
   if (!captureEnabled) return;
 
-  chrome.runtime.sendMessage({
-    type: "capture-event",
-    ...event,
-    viewport: {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    },
-    baseUrl: window.location.origin,
-  }).catch(() => {});
+  chrome.runtime
+    .sendMessage({
+      type: "capture-event",
+      ...event,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+      baseUrl: window.location.origin,
+    })
+    .catch(() => {});
 }

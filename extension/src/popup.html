@@ -1,119 +1,157 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      width: 300px;
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 14px;
-      color: #1a1a1a;
-      padding: 16px;
-    }
-    h1 {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 12px;
-    }
-    .status {
-      padding: 8px 12px;
-      border-radius: 6px;
-      margin-bottom: 12px;
-      font-size: 13px;
-    }
-    .status.idle { background: #f3f4f6; color: #6b7280; }
-    .status.recording { background: #fef2f2; color: #dc2626; }
-    .step-count {
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-    }
-    .recording-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: #dc2626;
-      border-radius: 50%;
-      margin-right: 6px;
-      animation: pulse 1s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-    input[type="text"] {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      font-size: 13px;
-      margin-bottom: 12px;
-      outline: none;
-    }
-    input[type="text"]:focus { border-color: #2563eb; }
-    button {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      margin-bottom: 8px;
-      transition: background 0.15s;
-    }
-    .btn-primary { background: #2563eb; color: white; }
-    .btn-primary:hover { background: #1d4ed8; }
-    .btn-danger { background: #dc2626; color: white; }
-    .btn-danger:hover { background: #b91c1c; }
-    .hidden { display: none; }
-    .info {
-      font-size: 12px;
-      color: #9ca3af;
-      margin-top: 4px;
-      text-align: center;
-    }
-    .export-note {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 8px;
-      padding: 8px;
-      background: #f9fafb;
-      border-radius: 6px;
-    }
-    .export-note code {
-      background: #e5e7eb;
-      padding: 1px 4px;
-      border-radius: 3px;
-      font-size: 11px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Demoscope Recorder</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: 300px;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        font-size: 14px;
+        color: #1a1a1a;
+        padding: 16px;
+      }
+      h1 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+      .status {
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+      .status.idle {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+      .status.recording {
+        background: #fef2f2;
+        color: #dc2626;
+      }
+      .step-count {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      .recording-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #dc2626;
+        border-radius: 50%;
+        margin-right: 6px;
+        animation: pulse 1s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 13px;
+        margin-bottom: 12px;
+        outline: none;
+      }
+      input[type="text"]:focus {
+        border-color: #2563eb;
+      }
+      button {
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        margin-bottom: 8px;
+        transition: background 0.15s;
+      }
+      .btn-primary {
+        background: #2563eb;
+        color: white;
+      }
+      .btn-primary:hover {
+        background: #1d4ed8;
+      }
+      .btn-danger {
+        background: #dc2626;
+        color: white;
+      }
+      .btn-danger:hover {
+        background: #b91c1c;
+      }
+      .hidden {
+        display: none;
+      }
+      .info {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 4px;
+        text-align: center;
+      }
+      .export-note {
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 8px;
+        padding: 8px;
+        background: #f9fafb;
+        border-radius: 6px;
+      }
+      .export-note code {
+        background: #e5e7eb;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Demoscope Recorder</h1>
 
-  <!-- Idle state -->
-  <div id="idle-view">
-    <div class="status idle">Ready to record</div>
-    <input type="text" id="title-input" placeholder="Recording title (optional)" value="">
-    <button class="btn-primary" id="start-btn">Start Recording</button>
-  </div>
-
-  <!-- Recording state -->
-  <div id="recording-view" class="hidden">
-    <div class="status recording">
-      <span class="recording-dot"></span>
-      Recording — <span class="step-count" id="step-count">0</span> frames captured
+    <!-- Idle state -->
+    <div id="idle-view">
+      <div class="status idle">Ready to record</div>
+      <input
+        type="text"
+        id="title-input"
+        placeholder="Recording title (optional)"
+        value=""
+      />
+      <button class="btn-primary" id="start-btn">Start Recording</button>
     </div>
-    <button class="btn-danger" id="stop-btn">Stop & Export</button>
-  </div>
 
-  <p class="info">Captures screenshots + interactions as you browse</p>
-  <div class="export-note hidden" id="export-note">
-    Export includes screenshots. Render with:<br>
-    <code>demoscope render ./capture -o demo.mp4</code>
-  </div>
+    <!-- Recording state -->
+    <div id="recording-view" class="hidden">
+      <div class="status recording">
+        <span class="recording-dot"></span>
+        Recording — <span class="step-count" id="step-count">0</span> frames
+        captured
+      </div>
+      <button class="btn-danger" id="stop-btn">Stop & Export</button>
+    </div>
 
-  <script src="./popup.ts" type="module"></script>
-</body>
+    <p class="info">Captures screenshots + interactions as you browse</p>
+    <div class="export-note hidden" id="export-note">
+      Export includes screenshots. Render with:<br />
+      <code>demoscope render ./capture -o demo.mp4</code>
+    </div>
+
+    <script src="./popup.ts" type="module"></script>
+  </body>
 </html>

@@ -41,18 +41,20 @@ export function encode(options: EncodeOptions): Promise<void> {
   });
 }
 
-function buildMp4Args(
-  input: string,
-  output: string,
-  fps: number
-): string[] {
+function buildMp4Args(input: string, output: string, fps: number): string[] {
   return [
-    "-framerate", String(fps),
-    "-i", input,
-    "-c:v", "libx264",
-    "-pix_fmt", "yuv420p",
-    "-preset", "fast",
-    "-crf", "18",
+    "-framerate",
+    String(fps),
+    "-i",
+    input,
+    "-c:v",
+    "libx264",
+    "-pix_fmt",
+    "yuv420p",
+    "-preset",
+    "fast",
+    "-crf",
+    "18",
     output,
   ];
 }
@@ -68,10 +70,14 @@ function buildGifArgs(
   const filter = `fps=${gifFps},${scale}split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse`;
 
   return [
-    "-framerate", String(fps),
-    "-i", input,
-    "-vf", filter,
-    "-loop", "0",
+    "-framerate",
+    String(fps),
+    "-i",
+    input,
+    "-vf",
+    filter,
+    "-loop",
+    "0",
     output,
   ];
 }

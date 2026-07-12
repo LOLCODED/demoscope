@@ -27,7 +27,6 @@ interface BaseStep {
   annotation?: string;
   wait?: number;
   zoom?: ZoomConfig;
-  highlight?: boolean;
 }
 
 export interface NavigateStep extends BaseStep {

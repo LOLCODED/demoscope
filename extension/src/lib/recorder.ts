@@ -39,7 +39,12 @@ let steps: RecordedStep[] = [];
 let stepCounter = 0;
 let recording = false;
 let onInteraction: InteractionCallback | null = null;
-let pendingType: { selector: string; text: string; stepId: string; label: string } | null = null;
+let pendingType: {
+  selector: string;
+  text: string;
+  stepId: string;
+  label: string;
+} | null = null;
 let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 let scrollAccum = 0;
 let scrollTarget: string | null = null;
@@ -163,9 +168,15 @@ function onClickCapture(e: MouseEvent): void {
 }
 
 const ACTION_KEYS = new Set([
-  "Enter", "Escape", "Tab",
-  "Backspace", "Delete",
-  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  "Enter",
+  "Escape",
+  "Tab",
+  "Backspace",
+  "Delete",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
 ]);
 
 function onKeydown(e: KeyboardEvent): void {
@@ -222,7 +233,10 @@ function onScroll(_e: Event): void {
   if (!recording) return;
 
   const target = document.scrollingElement || document.documentElement;
-  const selector = target === document.documentElement ? undefined : safeSelector(target as Element);
+  const selector =
+    target === document.documentElement
+      ? undefined
+      : safeSelector(target as Element);
   const currentTarget = selector || "__page__";
 
   if (scrollTarget !== currentTarget) {
@@ -303,7 +317,9 @@ function patchHistory(): void {
     onNavigation();
   };
 
-  history.replaceState = function (...args: Parameters<typeof history.replaceState>) {
+  history.replaceState = function (
+    ...args: Parameters<typeof history.replaceState>
+  ) {
     originalReplaceState!(...args);
     onNavigation();
   };
@@ -343,5 +359,7 @@ function onNavigation(): void {
 // --- Communication ---
 
 function notifyBackground(): void {
-  chrome.runtime.sendMessage({ type: "step-added", count: steps.length }).catch(() => {});
+  chrome.runtime
+    .sendMessage({ type: "step-added", count: steps.length })
+    .catch(() => {});
 }

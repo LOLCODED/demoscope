@@ -27,7 +27,9 @@ export function exportStepFile(
   recorded: RecordedStep[],
   title: string
 ): StepFile {
-  const baseUrl = recorded.find((s) => s.action === "navigate")?.url || window.location.origin;
+  const baseUrl =
+    recorded.find((s) => s.action === "navigate")?.url ||
+    window.location.origin;
   const origin = new URL(baseUrl).origin;
 
   const steps: StepAction[] = recorded.map((step) => {

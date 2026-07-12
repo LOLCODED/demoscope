@@ -31,7 +31,16 @@
           "id": { "type": "string" },
           "action": {
             "type": "string",
-            "enum": ["navigate", "click", "type", "scroll", "wait", "hover", "select", "keypress"]
+            "enum": [
+              "navigate",
+              "click",
+              "type",
+              "scroll",
+              "wait",
+              "hover",
+              "select",
+              "keypress"
+            ]
           },
           "annotation": { "type": "string" },
           "wait": { "type": "integer", "minimum": 0 },
@@ -43,7 +52,6 @@
               "padding": { "type": "integer", "minimum": 0 }
             }
           },
-          "highlight": { "type": "boolean" },
           "selector": { "type": "string" },
           "url": { "type": "string" },
           "text": { "type": "string" },

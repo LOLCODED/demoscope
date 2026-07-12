@@ -72,10 +72,12 @@ stopBtn.addEventListener("click", async () => {
 
   // Tell content script to stop (best-effort)
   if (tab?.id) {
-    chrome.tabs.sendMessage(tab.id, {
-      type: "stop-recording",
-      title: titleInput.value.trim() || "Recording",
-    }).catch(() => {});
+    chrome.tabs
+      .sendMessage(tab.id, {
+        type: "stop-recording",
+        title: titleInput.value.trim() || "Recording",
+      })
+      .catch(() => {});
   }
 
   // Tell background to stop and export the zip

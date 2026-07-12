@@ -144,7 +144,8 @@ async function executeStep(
 
     case "click": {
       const box = await waitForElement(page, step.selector, timeout);
-      if (!box) throw new Error(`Element not found or not visible: ${step.selector}`);
+      if (!box)
+        throw new Error(`Element not found or not visible: ${step.selector}`);
 
       const cx = box.x + box.width / 2;
       const cy = box.y + box.height / 2;
@@ -158,7 +159,8 @@ async function executeStep(
 
     case "type": {
       const box = await waitForElement(page, step.selector, timeout);
-      if (!box) throw new Error(`Element not found or not visible: ${step.selector}`);
+      if (!box)
+        throw new Error(`Element not found or not visible: ${step.selector}`);
 
       const cx = box.x + box.width / 2;
       const cy = box.y + box.height / 2;
@@ -207,7 +209,8 @@ async function executeStep(
 
     case "hover": {
       const box = await waitForElement(page, step.selector, timeout);
-      if (!box) throw new Error(`Element not found or not visible: ${step.selector}`);
+      if (!box)
+        throw new Error(`Element not found or not visible: ${step.selector}`);
 
       const cx = box.x + box.width / 2;
       const cy = box.y + box.height / 2;
@@ -220,12 +223,16 @@ async function executeStep(
 
     case "select": {
       const box = await waitForElement(page, step.selector, timeout);
-      if (!box) throw new Error(`Element not found or not visible: ${step.selector}`);
+      if (!box)
+        throw new Error(`Element not found or not visible: ${step.selector}`);
 
       const cx = box.x + box.width / 2;
       const cy = box.y + box.height / 2;
 
-      await page.locator(step.selector).first().selectOption(step.value, { timeout });
+      await page
+        .locator(step.selector)
+        .first()
+        .selectOption(step.value, { timeout });
       await sleep(wait);
       await capture(step, cx, cy);
       break;

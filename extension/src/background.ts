@@ -107,7 +107,8 @@ async function handleStop(): Promise<{ ok: boolean; stepCount?: number }> {
 
   // Build the zip
   const zipData = buildZip(state);
-  const filename = state.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-capture.zip";
+  const filename =
+    state.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-capture.zip";
 
   // Convert to base64 data URL (service workers can't use createObjectURL)
   const base64 = uint8ToBase64(zipData);

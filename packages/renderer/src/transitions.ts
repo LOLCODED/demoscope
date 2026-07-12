@@ -111,7 +111,9 @@ export function buildRenderTimeline(
         }
         // Zoom into the next target
         for (let t = 1; t <= phaseFrames; t++) {
-          pushTransition(interpolateZoom(fullView, currentZoom, t / phaseFrames));
+          pushTransition(
+            interpolateZoom(fullView, currentZoom, t / phaseFrames)
+          );
         }
       } else {
         // Full → zoomed or zoomed → full: a single interpolation is enough.
@@ -225,11 +227,7 @@ export function buildRenderTimeline(
   return timeline;
 }
 
-function getZoomRect(
-  frame: CapturedFrame,
-  vw: number,
-  vh: number
-): ZoomRect {
+function getZoomRect(frame: CapturedFrame, vw: number, vh: number): ZoomRect {
   if (frame.zoom) {
     return computeZoomRect(
       frame.zoom.centerX,

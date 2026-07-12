@@ -4,41 +4,60 @@ import { Command } from "commander";
 import { run } from "@demoscope/runner";
 import { renderPipeline } from "@demoscope/renderer";
 import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
-import { join, extname } from "node:path";
+import { extname } from "node:path";
 
 const program = new Command();
 
 program
   .name("demoscope")
-  .description("Create polished product walkthrough videos from step definitions")
+  .description(
+    "Create polished product walkthrough videos from step definitions"
+  )
   .version("0.1.0");
 
 program
   .command("run")
   .description("Replay a step file in a browser and capture frames")
   .argument("<stepfile>", "Path to steps.json or steps.yaml")
-  .option("-o, --output <dir>", "Output directory for captured frames", "./capture")
+  .option(
+    "-o, --output <dir>",
+    "Output directory for captured frames",
+    "./capture"
+  )
   .option("--fps <number>", "Frames per second", "30")
   .option("--headed", "Run browser in headed mode (visible)")
   .option("--timeout <ms>", "Timeout for waiting on elements (ms)", "10000")
   .option("--fail-fast", "Abort on first step failure instead of skipping")
-  .action(async (stepfile: string, opts: { output: string; fps: string; headed?: boolean; timeout: string; failFast?: boolean }) => {
-    try {
-      await run(stepfile, opts.output, {
-        fps: parseInt(opts.fps, 10),
-        headless: !opts.headed,
-        timeout: parseInt(opts.timeout, 10),
-        skipErrors: !opts.failFast,
-      });
-    } catch (err) {
-      console.error("Run failed:", (err as Error).message);
-      process.exit(1);
+  .action(
+    async (
+      stepfile: string,
+      opts: {
+        output: string;
+        fps: string;
+        headed?: boolean;
+        timeout: string;
+        failFast?: boolean;
+      }
+    ) => {
+      try {
+        await run(stepfile, opts.output, {
+          fps: parseInt(opts.fps, 10),
+          headless: !opts.headed,
+          timeout: parseInt(opts.timeout, 10),
+          skipErrors: !opts.failFast,
+        });
+      } catch (err) {
+        console.error("Run failed:", (err as Error).message);
+        process.exit(1);
+      }
     }
-  });
+  );
 
 program
   .command("render")
-  .description("Render captured frames into a video or GIF. Accepts a directory or .zip file.")
+  .description(
+    "Render captured frames into a video or GIF. Accepts a directory or .zip file."
+  )
   .argument("<input>", "Path to capture directory or .zip file from extension")
   .option("-o, --output <file>", "Output file path", "./output.mp4")
   .option("-f, --format <fmt>", "Output format: mp4 or gif", "mp4")
@@ -46,10 +65,18 @@ program
   .option("--width <number>", "Output width in pixels")
   .option("--transition <ms>", "Zoom transition duration in ms", "500")
   .option("--hold <ms>", "Hold time per step (ms)", "500")
-  .option("--annotation-hold <ms>", "Hold time when annotation shown (ms)", "1500")
+  .option(
+    "--annotation-hold <ms>",
+    "Hold time when annotation shown (ms)",
+    "1500"
+  )
   .option("--intro-hold <ms>", "Hold time on the first frame (ms)", "1500")
   .option("--cursor-size <px>", "Cursor size in pixels", "24")
-  .option("--click-cursor <style>", "Cursor shape on click frames: arrow or pointer", "arrow")
+  .option(
+    "--click-cursor <style>",
+    "Cursor shape on click frames: arrow or pointer",
+    "arrow"
+  )
   .option("--no-annotations", "Hide annotation overlays")
   .action(
     async (
@@ -104,7 +131,9 @@ program
       } finally {
         // Clean up extracted zip directory
         if (extractedDir) {
-          await rm(extractedDir, { recursive: true, force: true }).catch(() => {});
+          await rm(extractedDir, { recursive: true, force: true }).catch(
+            () => {}
+          );
         }
       }
     }
@@ -121,12 +150,24 @@ program
   .option("--headed", "Run browser in headed mode")
   .option("--timeout <ms>", "Timeout for waiting on elements (ms)", "10000")
   .option("--fail-fast", "Abort on first step failure instead of skipping")
-  .option("--capture-dir <dir>", "Directory for intermediate capture", "./.demoscope-capture")
+  .option(
+    "--capture-dir <dir>",
+    "Directory for intermediate capture",
+    "./.demoscope-capture"
+  )
   .option("--hold <ms>", "Hold time per step (ms)", "500")
-  .option("--annotation-hold <ms>", "Hold time when annotation shown (ms)", "1500")
+  .option(
+    "--annotation-hold <ms>",
+    "Hold time when annotation shown (ms)",
+    "1500"
+  )
   .option("--intro-hold <ms>", "Hold time on the first frame (ms)", "1500")
   .option("--cursor-size <px>", "Cursor size in pixels", "24")
-  .option("--click-cursor <style>", "Cursor shape on click frames: arrow or pointer", "arrow")
+  .option(
+    "--click-cursor <style>",
+    "Cursor shape on click frames: arrow or pointer",
+    "arrow"
+  )
   .option("--no-annotations", "Hide annotation overlays")
   .action(
     async (
@@ -186,14 +227,18 @@ program
         process.exit(1);
       } finally {
         // Clean up intermediate capture directory
-        await rm(opts.captureDir, { recursive: true, force: true }).catch(() => {});
+        await rm(opts.captureDir, { recursive: true, force: true }).catch(
+          () => {}
+        );
       }
     }
   );
 
 function parseClickCursor(value: string): "arrow" | "pointer" {
   if (value !== "arrow" && value !== "pointer") {
-    console.error(`--click-cursor must be "arrow" or "pointer" (got "${value}")`);
+    console.error(
+      `--click-cursor must be "arrow" or "pointer" (got "${value}")`
+    );
     process.exit(1);
   }
   return value;
@@ -211,11 +256,17 @@ async function extractZip(zipPath: string, outDir: string): Promise<void> {
     // Reject path traversal attempts
     const normalized = normalize(filename);
     const resolvedFile = resolve(outDir, normalized);
-    if (normalized.startsWith("..") || !resolvedFile.startsWith(resolvedOut + "/") && resolvedFile !== resolvedOut) {
+    if (
+      normalized.startsWith("..") ||
+      (!resolvedFile.startsWith(resolvedOut + "/") &&
+        resolvedFile !== resolvedOut)
+    ) {
       throw new Error(`Zip contains unsafe path: ${filename}`);
     }
 
-    await mkdir(resolvedFile.substring(0, resolvedFile.lastIndexOf("/")), { recursive: true });
+    await mkdir(resolvedFile.substring(0, resolvedFile.lastIndexOf("/")), {
+      recursive: true,
+    });
     await writeFile(resolvedFile, data);
   }
 }

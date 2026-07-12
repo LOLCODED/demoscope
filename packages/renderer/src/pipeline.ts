@@ -3,7 +3,11 @@ import { readFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { type CaptureManifest, type RenderConfig } from "@demoscope/schema";
 import { buildRenderTimeline, type RenderFrame } from "./transitions.js";
-import { cursorOverlay, DEFAULT_CURSOR_SIZE, type CursorShape } from "./cursor.js";
+import {
+  cursorOverlay,
+  DEFAULT_CURSOR_SIZE,
+  type CursorShape,
+} from "./cursor.js";
 import { annotationOverlay } from "./annotate.js";
 
 const BATCH_SIZE = 20;
@@ -16,7 +20,7 @@ export async function renderPipeline(
   const raw = await readFile(manifestPath, "utf-8");
   const manifest: CaptureManifest = JSON.parse(raw);
 
-  const { width: vw, height: vh } = manifest.meta.viewport;
+  const { width: vw } = manifest.meta.viewport;
 
   // Read actual image dimensions from first frame to detect true scale
   const firstImagePath = join(captureDir, manifest.frames[0].path);
@@ -29,7 +33,9 @@ export async function renderPipeline(
 
   // Force even dimensions (h264 requirement)
   const outputWidth = toEven(config.width ?? vw);
-  const outputHeight = toEven(Math.round(outputWidth * (actualImgH / actualImgW)));
+  const outputHeight = toEven(
+    Math.round(outputWidth * (actualImgH / actualImgW))
+  );
 
   const showAnnotations = config.showAnnotations ?? true;
   const cursorSize = Math.max(8, config.cursorSize ?? DEFAULT_CURSOR_SIZE);
@@ -88,7 +94,8 @@ export async function renderPipeline(
     outputPath: config.outputPath,
     format: config.format,
     fps: config.fps,
-    width: config.format === "gif" ? toEven(Math.min(outputWidth, 960)) : undefined,
+    width:
+      config.format === "gif" ? toEven(Math.min(outputWidth, 960)) : undefined,
   });
 
   console.log(`Output written to ${config.outputPath}`);
@@ -116,8 +123,14 @@ async function renderSingleFrame(
   const { zoomRect } = renderFrame;
 
   // Scale the zoom rect to match the high-res screenshot
-  const extractLeft = Math.max(0, Math.min(zoomRect.x * scale, scaledVw - zoomRect.w * scale));
-  const extractTop = Math.max(0, Math.min(zoomRect.y * scale, scaledVh - zoomRect.h * scale));
+  const extractLeft = Math.max(
+    0,
+    Math.min(zoomRect.x * scale, scaledVw - zoomRect.w * scale)
+  );
+  const extractTop = Math.max(
+    0,
+    Math.min(zoomRect.y * scale, scaledVh - zoomRect.h * scale)
+  );
   const extractWidth = Math.min(zoomRect.w * scale, scaledVw - extractLeft);
   const extractHeight = Math.min(zoomRect.h * scale, scaledVh - extractTop);
 

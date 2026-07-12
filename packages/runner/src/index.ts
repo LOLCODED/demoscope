@@ -22,7 +22,16 @@ export async function loadStepFile(filePath: string): Promise<StepFile> {
   // Validate against schema
   const schemaPath = require.resolve("@demoscope/schema/steps.schema.json");
   const schema = JSON.parse(await readFile(schemaPath, "utf-8"));
-  const { default: Ajv } = await import("ajv") as unknown as { default: { new(): { compile(schema: unknown): { (data: unknown): boolean; errors?: Array<{ instancePath: string; message?: string }> | null } } } };
+  const { default: Ajv } = (await import("ajv")) as unknown as {
+    default: {
+      new (): {
+        compile(schema: unknown): {
+          (data: unknown): boolean;
+          errors?: Array<{ instancePath: string; message?: string }> | null;
+        };
+      };
+    };
+  };
   const ajv = new Ajv();
   const validate = ajv.compile(schema);
 

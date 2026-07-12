@@ -102,10 +102,12 @@ function buildCssPath(el: Element): string {
 /** Filter out common utility/generated class names that aren't stable selectors */
 function isUtilityClass(cls: string): boolean {
   // Tailwind-style, CSS modules hashes, etc.
-  return /^[a-z]{1,3}-/.test(cls) ||
+  return (
+    /^[a-z]{1,3}-/.test(cls) ||
     /[_-][a-zA-Z0-9]{5,}$/.test(cls) ||
     /^css-/.test(cls) ||
-    /^_/.test(cls);
+    /^_/.test(cls)
+  );
 }
 
 /** Get a human-readable label for the element */
