@@ -1,0 +1,10 @@
+node_modules/
+profile/
+profile-dbg/
+gifs/
+gifs-opt/
+clips/
+frames/
+site/film.js
+site/editor.css
+site/sample/

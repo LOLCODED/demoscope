@@ -21,6 +21,17 @@
   const pxPerMs = $derived((laneWidth || pixelWidth) / Math.max(1, store.durationMs));
 
   let scrollEl = $state<HTMLDivElement>();
+  // Output-time of the alignment guide shown while a drag snaps to a neighbour.
+  let snapMs = $state<number | null>(null);
+  // Right-click track menu (add zoom/subtitle at a point, delete a segment).
+  interface TrackMenu {
+    x: number;
+    y: number;
+    timelineMs: number;
+    laneKey: string;
+    segId: string | null;
+  }
+  let menu = $state<TrackMenu | null>(null);
 
   // Keep the playhead in view as it advances (playback) or is scrubbed, so the
   // timeline follows the needle instead of letting it run off-screen.
@@ -57,7 +68,7 @@
       id: z.id,
       start: store.compiled.timelineTimeForSource(z.startMs),
       length: core.zoomDuration(z),
-      label: `Zoom ${z.level}×`,
+      label: z.followCursor ? `Zoom ${z.level}× ◎ follow` : `Zoom ${z.level}×`,
       kind: "zoom",
     }))
   );
@@ -121,13 +132,26 @@
       const raw = original + (e.clientX - startX) / pxPerMs;
       const snapped = snap(raw, anchors, e.altKey);
       const snappedEnd = snap(raw + seg.length, anchors, e.altKey);
-      const next = snappedEnd !== raw + seg.length ? snappedEnd - seg.length : snapped;
+      // Prefer an end-edge snap, else a start-edge snap; the guide marks whichever
+      // anchor caught so the user sees exactly what they're aligning to.
+      let next: number;
+      if (snappedEnd !== raw + seg.length) {
+        next = snappedEnd - seg.length;
+        snapMs = snappedEnd;
+      } else if (snapped !== raw) {
+        next = snapped;
+        snapMs = snapped;
+      } else {
+        next = raw;
+        snapMs = null;
+      }
       store.updateGesture((m) => core.moveSegment(m, seg.id, next));
     };
     const end = (e: PointerEvent) => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
       store.endGesture();
+      snapMs = null;
       // A click (no drag) seeks the playhead to that point, like the timeline.
       if (!dragging) scrub(e, lane);
     };
@@ -177,6 +201,68 @@
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up, { once: true });
   }
+
+  function openMenu(event: MouseEvent, laneKey: string, lane: HTMLElement): void {
+    event.preventDefault();
+    const bounds = lane.getBoundingClientRect();
+    const timelineMs = clampTime(
+      ((event.clientX - bounds.left) / bounds.width) * store.durationMs
+    );
+    const seg =
+      event.target instanceof HTMLElement
+        ? event.target.closest<HTMLElement>(".ds-seg")
+        : null;
+    menu = {
+      x: event.clientX,
+      y: event.clientY,
+      timelineMs,
+      laneKey,
+      segId: seg?.dataset.segId ?? null,
+    };
+  }
+
+  const clampTime = (ms: number) => Math.min(Math.max(ms, 0), store.durationMs);
+
+  interface MenuItem {
+    label: string;
+    run: () => void;
+  }
+
+  const menuItems = $derived.by<MenuItem[]>(() => {
+    if (!menu) return [];
+    const at = menu.timelineMs;
+    const items: MenuItem[] = [];
+    if (menu.laneKey === "video" || menu.laneKey === "zoom")
+      items.push({ label: "Add zoom here", run: () => store.addZoomAt(at) });
+    if (menu.laneKey === "video" || menu.laneKey === "sub")
+      items.push({
+        label: "Add subtitle here",
+        run: () => store.addSubtitleAt(at),
+      });
+    if (menu.laneKey === "video")
+      items.push({ label: "Split here", run: () => splitAt(at) });
+    if (menu.segId) {
+      const id = menu.segId;
+      items.push({
+        label: "Delete",
+        run: () => {
+          store.select(id);
+          store.deleteSelected();
+        },
+      });
+    }
+    return items;
+  });
+
+  function splitAt(timelineMs: number): void {
+    store.setTime(timelineMs);
+    store.split();
+  }
+
+  function runItem(item: MenuItem): void {
+    item.run();
+    menu = null;
+  }
 </script>
 
 <div class="ds-timeline">
@@ -206,12 +292,14 @@
           bind:this={laneEls[lane.key]}
           role="presentation"
           onpointerdown={(e) => lanePointerDown(e, e.currentTarget)}
+          oncontextmenu={(e) => openMenu(e, lane.key, e.currentTarget)}
         >
           {#each lane.items as seg (seg.id)}
             <button
               type="button"
               class="ds-seg ds-seg-{seg.kind}"
               class:ds-selected={store.isSelected(seg.id)}
+              data-seg-id={seg.id}
               style="left:{seg.start * pxPerMs}px; width:{Math.max(
                 2,
                 seg.length * pxPerMs
@@ -231,10 +319,33 @@
         </div>
       {/each}
 
+      {#if snapMs !== null}
+        <div class="ds-snap-guide" style="left:{snapMs * pxPerMs}px"></div>
+      {/if}
+
       <div
         class="ds-needle"
         style="left:{store.previewTimeMs * pxPerMs}px"
       ></div>
     </div>
   </div>
+
+  {#if menu}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div
+      class="ds-menu-backdrop"
+      oncontextmenu={(e) => {
+        e.preventDefault();
+        menu = null;
+      }}
+      onpointerdown={() => (menu = null)}
+    ></div>
+    <ul class="ds-menu" style="left:{menu.x}px; top:{menu.y}px" role="menu">
+      {#each menuItems as item (item.label)}
+        <li>
+          <button role="menuitem" onclick={() => runItem(item)}>{item.label}</button>
+        </li>
+      {/each}
+    </ul>
+  {/if}
 </div>

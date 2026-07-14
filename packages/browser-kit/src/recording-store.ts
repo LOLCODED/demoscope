@@ -155,7 +155,12 @@ export async function renameRecording(
 export async function deleteRecording(id: string): Promise<void> {
   const history = await listRecordings();
   const remaining = history.filter((record) => record.id !== id);
-  await del(recordKey(id), videoKey(id));
+  await del(
+    recordKey(id),
+    videoKey(id),
+    editKey(id, "video"),
+    editKey(id, "document")
+  );
   await put(HISTORY_KEY, remaining);
   const activeId = await get<string>(ACTIVE_RECORD_KEY);
   if (activeId === id) {
@@ -166,3 +171,123 @@ export async function deleteRecording(id: string): Promise<void> {
 
 /** Remove legacy transient keys retained for backwards-compatible migration. */
 export const clearRecording = () => del(LEGACY_RECORD_KEY, LEGACY_VIDEO_KEY);
+
+// --- edit persistence -------------------------------------------------------
+//
+// Each recording carries an *edit document* per editor kind (video / step
+// document): the live `working` copy that autosaves on every change, plus any
+// named `versions` the user snapshots. The auto-derived default is never stored
+// here — it is always re-derivable from the capture manifest, so it can neither
+// be lost nor go stale.
+
+/** A recording's editor kinds. Kept string-typed to stay payload-agnostic. */
+export type EditKind = "video" | "document";
+
+/** One named snapshot of an edit model. */
+export interface EditVersion<T> {
+  id: string;
+  name: string;
+  createdAt: number;
+  model: T;
+}
+
+/** The persisted edit state for one recording + kind. */
+export interface EditDoc<T> {
+  working: T;
+  versions: EditVersion<T>[];
+}
+
+const editKey = (id: string, kind: EditKind) => `edits:${id}:${kind}`;
+
+// Pure reducers over an edit document — exported so they can be reused and unit
+// tested without a live IndexedDB.
+
+export const withWorking = <T>(
+  doc: EditDoc<T> | undefined,
+  working: T
+): EditDoc<T> => ({
+  working,
+  versions: doc?.versions ?? [],
+});
+
+export const withNewVersion = <T>(
+  doc: EditDoc<T> | undefined,
+  version: EditVersion<T>
+): EditDoc<T> => ({
+  working: doc?.working ?? version.model,
+  versions: [version, ...(doc?.versions ?? [])],
+});
+
+export const withoutVersion = <T>(
+  doc: EditDoc<T>,
+  versionId: string
+): EditDoc<T> => ({
+  working: doc.working,
+  versions: doc.versions.filter((version) => version.id !== versionId),
+});
+
+export const withRenamedVersion = <T>(
+  doc: EditDoc<T>,
+  versionId: string,
+  name: string
+): EditDoc<T> => ({
+  working: doc.working,
+  versions: doc.versions.map((version) =>
+    version.id === versionId ? { ...version, name } : version
+  ),
+});
+
+export const loadEditDoc = <T>(
+  id: string,
+  kind: EditKind
+): Promise<EditDoc<T> | undefined> => get<EditDoc<T>>(editKey(id, kind));
+
+/** Autosave the live working copy, preserving any existing versions. */
+export async function saveWorkingEdit<T>(
+  id: string,
+  kind: EditKind,
+  working: T
+): Promise<void> {
+  const doc = await loadEditDoc<T>(id, kind);
+  await put(editKey(id, kind), withWorking(doc, working));
+}
+
+/** Snapshot `model` as a new named version (newest first). Returns it. */
+export async function saveEditVersion<T>(
+  id: string,
+  kind: EditKind,
+  name: string,
+  model: T
+): Promise<EditVersion<T>> {
+  const doc = await loadEditDoc<T>(id, kind);
+  const version: EditVersion<T> = {
+    id: crypto.randomUUID(),
+    name,
+    createdAt: Date.now(),
+    model,
+  };
+  await put(editKey(id, kind), withNewVersion(doc, version));
+  return version;
+}
+
+export async function deleteEditVersion(
+  id: string,
+  kind: EditKind,
+  versionId: string
+): Promise<void> {
+  const doc = await loadEditDoc<unknown>(id, kind);
+  if (!doc) return;
+  await put(editKey(id, kind), withoutVersion(doc, versionId));
+}
+
+export async function renameEditVersion(
+  id: string,
+  kind: EditKind,
+  versionId: string,
+  name: string
+): Promise<void> {
+  const nextName = name.trim();
+  const doc = await loadEditDoc<unknown>(id, kind);
+  if (!doc || !nextName) return;
+  await put(editKey(id, kind), withRenamedVersion(doc, versionId, nextName));
+}

@@ -5,6 +5,7 @@
   "description": "Record browser interactions with screenshots and export as demoscope capture bundles",
   "permissions": [
     "activeTab",
+    "scripting",
     "tabs",
     "storage",
     "unlimitedStorage",

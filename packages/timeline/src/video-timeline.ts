@@ -13,6 +13,21 @@ export interface VideoRenderFrame extends CompositedFrame {
   videoTimeMs: number;
 }
 
+/**
+ * Default segment timings, shared by auto-derivation and manually added
+ * segments so a hand-placed zoom/subtitle behaves like a derived one.
+ */
+export const DEFAULT_TIMINGS = {
+  /** Zoom in/out duration in ms. */
+  transitionMs: 300,
+  /** How long to stay zoomed after an interaction before easing back out. */
+  holdMs: 720,
+  /** How long an annotation label stays on screen after its interaction. */
+  annotationHoldMs: 1200,
+  /** Duration of the synthetic cursor glide onto each next target. */
+  cursorGlideMs: 400,
+} as const;
+
 export interface VideoTimelineOptions {
   /** Zoom in/out duration in ms. */
   transitionMs: number;
@@ -41,6 +56,9 @@ export interface ZoomSegment {
   centerY: number;
   level: number;
   padding: number;
+  /** Track the (interpolated) cursor instead of the fixed center while active;
+   * centerX/centerY become the fallback when no cursor data exists. */
+  followCursor?: boolean;
 }
 
 /** A subtitle/annotation label shown over a time range. */
@@ -98,6 +116,8 @@ export interface VideoEditModel {
   cuts: CutSegment[];
   clips: VideoClip[];
   crop?: CropRect;
+  /** Draw a soft highlight circle around the cursor glyph. */
+  cursorHighlight?: boolean;
 }
 
 /** A compiled model that can be sampled cheaply at any time (for live preview). */
@@ -144,12 +164,14 @@ export function deriveVideoEditModel(
         }))
     : [];
 
-  const cursors: CursorKeyframe[] = events.map((e) => ({
-    tMs: e.t,
-    x: e.cursorX,
-    y: e.cursorY,
-    isClick: e.isClick,
-  }));
+  const cursors: CursorKeyframe[] = events
+    .filter((e) => e.cursorX !== undefined && e.cursorY !== undefined)
+    .map((e) => ({
+      tMs: e.t,
+      x: e.cursorX!,
+      y: e.cursorY!,
+      isClick: e.isClick,
+    }));
 
   return {
     durationMs,
@@ -177,7 +199,11 @@ export function deriveVideoEditModel(
 export function compileVideoModel(model: VideoEditModel): CompiledVideoModel {
   const { width: vw, height: vh } = model.viewport;
   const full = cropRect(model.crop, vw, vh);
-  const zoomKeyframes = buildZoomKeyframes(model.zooms, vw, vh, full);
+  const fixedZooms = model.zooms.filter((z) => !z.followCursor);
+  const followZooms = [...model.zooms]
+    .filter((z) => z.followCursor)
+    .sort((a, b) => a.startMs - b.startMs);
+  const zoomKeyframes = buildZoomKeyframes(fixedZooms, vw, vh, full);
   const cursors = [...model.cursors].sort((a, b) => a.tMs - b.tMs);
   const clips = [...model.clips].sort(
     (a, b) => a.timelineStartMs - b.timelineStartMs
@@ -189,12 +215,21 @@ export function compileVideoModel(model: VideoEditModel): CompiledVideoModel {
     frameAt(t: number): CompositedFrame {
       const sourceTime = sourceTimeAt(clips, t) ?? t;
       const cursor = sampleCursor(cursors, sourceTime, model.cursorGlideMs);
+      const base = sampleZoom(zoomKeyframes, sourceTime);
       return {
-        zoomRect: sampleZoom(zoomKeyframes, sourceTime),
-        cursorX: cursor.x,
-        cursorY: cursor.y,
+        zoomRect: followedZoomRect(
+          followZooms,
+          base,
+          cursor,
+          vw,
+          vh,
+          sourceTime
+        ),
+        cursorX: cursor?.x,
+        cursorY: cursor?.y,
         isClick: isClickActive(cursors, sourceTime),
         annotation: activeSubtitle(model.subtitles, sourceTime),
+        cursorHighlight: model.cursorHighlight,
       };
     },
     sourceTimeAt: (t: number) => sourceTimeAt(clips, t),
@@ -242,8 +277,8 @@ interface ZoomKeyframe {
 
 interface TimedEvent {
   t: number;
-  cursorX: number;
-  cursorY: number;
+  cursorX?: number;
+  cursorY?: number;
   zoom?: CapturedFrame["zoom"];
   annotation?: string;
   isClick: boolean;
@@ -303,6 +338,42 @@ function buildZoomKeyframes(
   return kfs;
 }
 
+/**
+ * Overlay follow-cursor zooms on the keyframed (fixed-zoom) rect. The camera
+ * eases from whatever the fixed timeline shows into a rect centered on the
+ * live cursor, tracks it through the hold, and eases back out — so follow
+ * zooms compose with fixed zooms instead of fighting their keyframes.
+ */
+function followedZoomRect(
+  followZooms: ZoomSegment[],
+  base: ZoomRect,
+  cursor: { x: number; y: number } | undefined,
+  vw: number,
+  vh: number,
+  t: number
+): ZoomRect {
+  for (let i = followZooms.length - 1; i >= 0; i--) {
+    const z = followZooms[i];
+    const inEnd = z.startMs + z.transitionMs;
+    const holdEnd = inEnd + z.holdMs;
+    const outEnd = holdEnd + z.transitionMs;
+    if (t < z.startMs || t > outEnd) continue;
+    const target = computeZoomRect(
+      cursor?.x ?? z.centerX,
+      cursor?.y ?? z.centerY,
+      z.level,
+      z.padding,
+      vw,
+      vh
+    );
+    if (t < inEnd)
+      return interpolateZoom(base, target, (t - z.startMs) / z.transitionMs);
+    if (t <= holdEnd) return target;
+    return interpolateZoom(target, base, (t - holdEnd) / z.transitionMs);
+  }
+  return base;
+}
+
 function sampleZoom(kfs: ZoomKeyframe[], t: number): ZoomRect {
   if (t <= kfs[0].t) return kfs[0].rect;
   const last = kfs[kfs.length - 1];
@@ -322,8 +393,8 @@ function sampleCursor(
   cursors: CursorKeyframe[],
   t: number,
   glideMs: number
-): { x: number; y: number } {
-  if (cursors.length === 0) return { x: 0, y: 0 };
+): { x: number; y: number } | undefined {
+  if (cursors.length === 0) return undefined;
   if (t <= cursors[0].tMs) return { x: cursors[0].x, y: cursors[0].y };
   const last = cursors[cursors.length - 1];
   if (t >= last.tMs) return { x: last.x, y: last.y };

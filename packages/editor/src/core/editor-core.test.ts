@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { VideoEditModel } from "@demoscope/timeline";
+import { DEFAULT_TIMINGS, type VideoEditModel } from "@demoscope/timeline";
 import {
   addSubtitle,
   addZoom,
@@ -37,14 +37,14 @@ function model(): VideoEditModel {
 }
 
 describe("addZoom", () => {
-  it("adds a centered 2x zoom starting 500ms before the playhead", () => {
+  it("adds a centered 1.5x zoom starting one transition before the playhead", () => {
     const m = model();
     const id = addZoom(m, 2000);
     expect(m.zooms).toHaveLength(1);
     const zoom = m.zooms[0];
     expect(zoom.id).toBe(id);
-    expect(zoom.startMs).toBe(1500);
-    expect(zoom.level).toBe(2);
+    expect(zoom.startMs).toBe(2000 - DEFAULT_TIMINGS.transitionMs);
+    expect(zoom.level).toBe(1.5);
     expect(zoom.centerX).toBe(640);
     expect(zoom.centerY).toBe(360);
   });
@@ -57,11 +57,11 @@ describe("addZoom", () => {
 });
 
 describe("addSubtitle", () => {
-  it("spans 2s but never past the duration", () => {
+  it("spans the default hold but never past the duration", () => {
     const m = model();
     m.durationMs = 3000;
-    addSubtitle(m, 2000);
-    expect(m.subtitles[0]).toMatchObject({ startMs: 2000, endMs: 3000 });
+    addSubtitle(m, 2500);
+    expect(m.subtitles[0]).toMatchObject({ startMs: 2500, endMs: 3000 });
   });
 });
 
@@ -130,11 +130,12 @@ describe("moveSegment", () => {
 
   it("clamps a subtitle within the timeline keeping its length", () => {
     const m = model();
-    const id = addSubtitle(m, 2000); // length 2000
+    const length = DEFAULT_TIMINGS.annotationHoldMs;
+    const id = addSubtitle(m, 2000);
     moveSegment(m, id, 9000);
     const sub = m.subtitles[0];
-    expect(sub.startMs).toBe(8000); // clamped to duration - length
-    expect(sub.endMs - sub.startMs).toBe(2000);
+    expect(sub.startMs).toBe(10000 - length); // clamped to duration - length
+    expect(sub.endMs - sub.startMs).toBe(length);
   });
 });
 

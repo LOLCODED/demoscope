@@ -5,6 +5,7 @@ export {
   type TimelineOptions,
 } from "./transitions.js";
 export {
+  DEFAULT_TIMINGS,
   buildVideoTimeline,
   deriveVideoEditModel,
   compileVideoModel,

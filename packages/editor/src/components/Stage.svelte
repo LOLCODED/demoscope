@@ -13,8 +13,32 @@
   const dims: OutputDims = store.recording.dims;
 
   let holder = $state<HTMLDivElement>();
+  let stageEl = $state<HTMLDivElement>();
   let compositor: CanvasCompositor | null = null;
   let renderVersion = 0;
+
+  // Focus reticle: shown over the preview whenever a zoom is selected, so the
+  // focus point is a visible thing you drag rather than a hidden click target.
+  const selectedZoom = $derived(
+    store.model.zooms.find((z) => z.id === store.primaryId)
+  );
+  let reticle = $state<{ left: number; top: number } | null>(null);
+
+  $effect(() => {
+    void store.compiled;
+    void store.previewTimeMs;
+    void store.primaryId;
+    void store.tool;
+    reticle = computeReticle();
+  });
+
+  // The reticle is placed off the live canvas rect, so recompute when the layout
+  // (not the model) shifts under it.
+  $effect(() => {
+    const onResize = () => (reticle = computeReticle());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  });
 
   // Crop drag state (screen-space rectangle over the canvas).
   let dragRect = $state<{ x: number; y: number; w: number; h: number } | null>(
@@ -179,6 +203,50 @@
     return compositor?.canvas.getBoundingClientRect() ?? null;
   }
 
+  /** Position the reticle over the selected zoom's focus point (stage-relative). */
+  function computeReticle(): { left: number; top: number } | null {
+    const zoom = selectedZoom;
+    if (!zoom || zoom.followCursor || store.tool === "crop" || !compositor || !stageEl)
+      return null;
+    const canvas = compositor.canvas.getBoundingClientRect();
+    const stage = stageEl.getBoundingClientRect();
+    const frame = store.compiled.frameAt(store.previewTimeMs).zoomRect;
+    const x = ((zoom.centerX - frame.x) / frame.w) * canvas.width;
+    const y = ((zoom.centerY - frame.y) / frame.h) * canvas.height;
+    return { left: canvas.left - stage.left + x, top: canvas.top - stage.top + y };
+  }
+
+  /** Map a screen point over the canvas to source-viewport focus coordinates. */
+  function focusFromEvent(event: PointerEvent): { x: number; y: number } | null {
+    const bounds = canvasRect();
+    if (!bounds) return null;
+    const frame = store.compiled.frameAt(store.previewTimeMs).zoomRect;
+    return {
+      x: frame.x + ((event.clientX - bounds.left) / bounds.width) * frame.w,
+      y: frame.y + ((event.clientY - bounds.top) / bounds.height) * frame.h,
+    };
+  }
+
+  function beginReticleDrag(event: PointerEvent): void {
+    const zoom = selectedZoom;
+    if (!zoom) return;
+    event.stopPropagation();
+    event.preventDefault();
+    store.beginGesture();
+    const moveTo = (e: PointerEvent) => {
+      const focus = focusFromEvent(e);
+      if (focus) store.setZoomFocusLive(zoom.id, focus.x, focus.y);
+    };
+    moveTo(event);
+    const up = () => {
+      window.removeEventListener("pointermove", moveTo);
+      window.removeEventListener("pointerup", up);
+      store.endGesture();
+    };
+    window.addEventListener("pointermove", moveTo);
+    window.addEventListener("pointerup", up, { once: true });
+  }
+
   /** Map a screen rectangle over the canvas into viewport crop coordinates. */
   function toCrop(
     left: number,
@@ -200,12 +268,8 @@
     const bounds = canvasRect();
     if (!bounds || event.target !== compositor?.canvas) return;
     if (store.tool === "pickFocus" && store.pickFocusId) {
-      const frame = store.compiled.frameAt(store.previewTimeMs).zoomRect;
-      store.setZoomFocus(
-        store.pickFocusId,
-        frame.x + ((event.clientX - bounds.left) / bounds.width) * frame.w,
-        frame.y + ((event.clientY - bounds.top) / bounds.height) * frame.h
-      );
+      const focus = focusFromEvent(event);
+      if (focus) store.setZoomFocus(store.pickFocusId, focus.x, focus.y);
       return;
     }
     if (store.tool === "crop") {
@@ -249,6 +313,7 @@
   class="ds-stage"
   class:ds-picking={store.tool !== "none"}
   role="presentation"
+  bind:this={stageEl}
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
   onpointerup={onPointerUp}
@@ -260,9 +325,23 @@
       style="left:{dragRect.x}px; top:{dragRect.y}px; width:{dragRect.w}px; height:{dragRect.h}px"
     ></div>
   {/if}
+  {#if reticle}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="ds-focus-reticle"
+      class:ds-active={store.pickFocusId === selectedZoom?.id}
+      style="left:{reticle.left}px; top:{reticle.top}px"
+      title="Drag to set the zoom focus"
+      onpointerdown={beginReticleDrag}
+    >
+      <span class="ds-focus-label">Zoom focus</span>
+    </div>
+  {/if}
   {#if store.tool === "crop"}
     <p class="ds-stage-hint">Drag on the preview to reframe · Esc to cancel</p>
   {:else if store.tool === "pickFocus"}
-    <p class="ds-stage-hint">Click the preview to set the zoom focus</p>
+    <p class="ds-stage-hint">Click the preview to move the zoom focus · Esc to finish</p>
+  {:else if selectedZoom && !selectedZoom.followCursor}
+    <p class="ds-stage-hint">Drag the ◎ target to aim the zoom</p>
   {/if}
 </div>

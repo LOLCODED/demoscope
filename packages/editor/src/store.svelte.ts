@@ -16,8 +16,6 @@ export type Tool = "none" | "crop" | "pickFocus";
 export interface EditorHost {
   recording: LoadedRecording;
   capabilities: Capabilities;
-  /** Persist edits (extension only); web app leaves this undefined. */
-  onModelChange?: (model: VideoEditModel) => void;
 }
 
 const emptyModel = (rec: LoadedRecording): VideoEditModel => ({
@@ -41,8 +39,9 @@ const emptyModel = (rec: LoadedRecording): VideoEditModel => ({
 export class EditorStore {
   readonly recording: LoadedRecording;
   readonly capabilities: Capabilities;
-  private readonly onModelChange?: (model: VideoEditModel) => void;
   private readonly history: History<VideoEditModel>;
+  // JSON of the last saved model; drives {@link dirty}. Updated on markSaved().
+  private savedBaseline: string;
 
   model = $state<VideoEditModel>(null!);
   selectedIds = $state<string[]>([]);
@@ -54,6 +53,11 @@ export class EditorStore {
   markOutMs = $state<number | null>(null);
   canUndo = $state(false);
   canRedo = $state(false);
+  /** True while showing a version (see {@link preview}): edits aren't "dirty". */
+  previewing = $state(false);
+  // Bump on every committed change so `dirty` re-evaluates reactively.
+  private rev = $state(0);
+  private previewBackup: VideoEditModel | null = null;
 
   compiled = $derived<CompiledVideoModel>(compileVideoModel(this.model));
   durationMs = $derived(this.model.durationMs);
@@ -61,11 +65,15 @@ export class EditorStore {
   primaryKind = $derived(
     this.primaryId ? core.segmentKind(this.model, this.primaryId) : null
   );
+  /** Unsaved edits exist vs the last save (ignored while previewing a version). */
+  dirty = $derived.by(() => {
+    void this.rev; // re-evaluate after markSaved updates the baseline
+    return !this.previewing && this.modelJson() !== this.savedBaseline;
+  });
 
   constructor(host: EditorHost) {
     this.recording = host.recording;
     this.capabilities = host.capabilities;
-    this.onModelChange = host.onModelChange;
     // Snapshot to a plain object: the model may arrive as a Svelte state proxy
     // (host is reactive) which structuredClone cannot copy.
     const raw = host.recording.model;
@@ -74,6 +82,17 @@ export class EditorStore {
       : emptyModel(host.recording);
     this.history = new History(seed);
     this.model = seed;
+    this.savedBaseline = JSON.stringify(seed);
+  }
+
+  private modelJson(): string {
+    return JSON.stringify($state.snapshot(this.model));
+  }
+
+  /** Mark the current model as the saved baseline (call after persisting). */
+  markSaved(): void {
+    this.savedBaseline = this.modelJson();
+    this.rev++;
   }
 
   // --- history plumbing ---------------------------------------------------
@@ -85,7 +104,43 @@ export class EditorStore {
     this.selectedIds = this.selectedIds.filter(
       (id) => core.segmentKind(this.model, id) !== null
     );
-    this.onModelChange?.(this.model);
+  }
+
+  /** A plain snapshot of the live model (safe to persist or version). */
+  get workingModel(): VideoEditModel {
+    return $state.snapshot(this.model) as VideoEditModel;
+  }
+
+  /** Replace the whole model, clearing undo history. */
+  private loadModel(model: VideoEditModel): void {
+    const seed = $state.snapshot(model) as VideoEditModel;
+    this.history.reset(seed);
+    this.model = seed;
+    this.canUndo = false;
+    this.canRedo = false;
+    this.selectedIds = [];
+  }
+
+  /** Show a version without disturbing the working copy; undo via exitPreview. */
+  preview(model: VideoEditModel): void {
+    this.previewBackup ??= this.workingModel;
+    this.previewing = true;
+    this.loadModel(model);
+  }
+
+  exitPreview(): void {
+    if (!this.previewBackup) return;
+    const backup = this.previewBackup;
+    this.previewBackup = null;
+    this.previewing = false;
+    this.loadModel(backup);
+  }
+
+  /** Adopt `model` as the new working copy, ending any preview. Caller persists. */
+  restore(model: VideoEditModel): void {
+    this.previewBackup = null;
+    this.previewing = false;
+    this.loadModel(model);
   }
 
   commit(mutate: (model: VideoEditModel) => void): void {
@@ -152,28 +207,42 @@ export class EditorStore {
 
   // --- edit operations (each one undoable) --------------------------------
 
-  /**
-   * Zooms/subtitles are anchored in source time (so they stick to the footage
-   * when clips are split, held, or reordered). Convert the playhead — which is
-   * output-timeline time — before adding, or they'd land at the wrong moment
-   * once the timeline no longer maps 1:1 to the source.
-   */
-  private get playheadSourceMs(): number {
-    return this.compiled.sourceTimeAt(this.previewTimeMs) ?? this.previewTimeMs;
+  addZoom(): void {
+    this.addZoomAt(this.previewTimeMs);
   }
 
-  addZoom(): void {
-    const atMs = this.playheadSourceMs;
+  addSubtitle(): void {
+    this.addSubtitleAt(this.previewTimeMs);
+  }
+
+  /**
+   * Add a zoom anchored at an output-timeline position (playhead / context menu
+   * / click). Zooms and subtitles are stored in *source* time so they stick to
+   * the footage when clips are split, held, or reordered — hence the map back
+   * from the output timeline before inserting.
+   */
+  addZoomAt(timelineMs: number): void {
+    const atMs = this.compiled.sourceTimeAt(timelineMs) ?? timelineMs;
     let id = "";
     this.commit((m) => (id = core.addZoom(m, atMs)));
     this.select(id);
   }
 
-  addSubtitle(): void {
-    const atMs = this.playheadSourceMs;
+  addSubtitleAt(timelineMs: number): void {
+    const atMs = this.compiled.sourceTimeAt(timelineMs) ?? timelineMs;
     let id = "";
     this.commit((m) => (id = core.addSubtitle(m, atMs)));
     this.select(id);
+  }
+
+  /** Enter focus-picking for a zoom (defaults to the selected one). */
+  startPickFocus(id: string | null = this.primaryId): void {
+    const zoomId =
+      id && core.segmentKind(this.model, id) === "zoom" ? id : null;
+    if (!zoomId) return;
+    this.select(zoomId);
+    this.tool = "pickFocus";
+    this.pickFocusId = zoomId;
   }
 
   split(): void {
@@ -235,6 +304,11 @@ export class EditorStore {
     this.commit((m) => core.setZoomFocus(m, id, centerX, centerY));
     this.pickFocusId = null;
     this.tool = "none";
+  }
+
+  /** Live focus drag (reticle on the stage): one undo step per gesture. */
+  setZoomFocusLive(id: string, centerX: number, centerY: number): void {
+    this.updateGesture((m) => core.setZoomFocus(m, id, centerX, centerY));
   }
 
   // --- export -------------------------------------------------------------

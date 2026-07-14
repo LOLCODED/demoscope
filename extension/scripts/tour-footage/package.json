@@ -1,0 +1,17 @@
+{
+  "name": "demoscope-tour-footage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Films the guided-tour GIFs using the demoscope extension itself",
+  "scripts": {
+    "build:film": "node build-film.mjs",
+    "record": "node record.mjs",
+    "optimize": "bash optimize.sh",
+    "verify": "node verify-tour.mjs"
+  },
+  "devDependencies": {
+    "gifsicle": "^7.0.1",
+    "playwright": "^1.61.1"
+  }
+}

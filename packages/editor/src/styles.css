@@ -368,26 +368,97 @@
   pointer-events: none;
 }
 
-/* --- Inspector + Export ------------------------------------------------- */
-.ds-inspector,
-.ds-export {
+/* --- Export + Versions -------------------------------------------------- */
+.ds-export,
+.ds-versions {
   padding: 16px;
   border-bottom: 1px solid var(--ds-border);
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.ds-inspector h3,
-.ds-export h3 {
+.ds-export h3,
+.ds-versions h3,
+.ds-popover h3 {
   margin: 0;
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--ds-muted);
 }
-.ds-inspector-empty p {
+
+/* --- Versions ----------------------------------------------------------- */
+.ds-versions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ds-versions-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--ds-accent);
+  border-radius: 8px;
+  background: var(--ds-accent-soft);
+  font-size: 12px;
+}
+.ds-versions-preview-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ds-versions-list {
+  list-style: none;
   margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ds-version {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  background: var(--ds-surface-2);
+}
+.ds-version.ds-active {
+  border-color: var(--ds-accent);
+}
+.ds-version-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ds-version-name {
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ds-text);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+button.ds-version-name:hover {
+  color: var(--ds-accent);
+}
+.ds-version-meta time {
+  font-size: 11px;
   color: var(--ds-muted);
+}
+.ds-version-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 .ds-field {
   display: flex;
@@ -395,6 +466,17 @@
   gap: 5px;
   font-size: 12px;
   color: var(--ds-muted);
+}
+.ds-field-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ds-muted);
+  cursor: pointer;
+}
+.ds-field-check input {
+  accent-color: var(--ds-accent);
 }
 .ds-field input[type="number"],
 .ds-field input[type="text"],
@@ -597,4 +679,378 @@
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid var(--ds-border);
+}
+
+/* --- Timeline snapping + context menu ----------------------------------- */
+.ds-snap-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ds-accent);
+  box-shadow: 0 0 0 1px var(--ds-accent-soft);
+  pointer-events: none;
+  z-index: 3;
+}
+.ds-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.ds-menu {
+  position: fixed;
+  z-index: 41;
+  min-width: 168px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+.ds-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  background: none;
+  color: var(--ds-text);
+  font: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ds-menu button:hover {
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent);
+}
+
+/* --- Shortcuts help ----------------------------------------------------- */
+.ds-toolbar-end {
+  margin-left: auto;
+}
+.ds-shortcuts {
+  position: relative;
+}
+.ds-shortcuts-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.ds-shortcuts-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 41;
+  width: 280px;
+  padding: 12px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+.ds-shortcuts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.ds-shortcuts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ds-shortcuts-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ds-text);
+}
+.ds-shortcuts-list li.ds-disabled {
+  opacity: 0.4;
+}
+.ds-shortcuts-list kbd {
+  flex-shrink: 0;
+  min-width: 34px;
+  text-align: center;
+  padding: 2px 6px;
+  font:
+    600 11px ui-monospace,
+    monospace;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  border-radius: 5px;
+  color: var(--ds-muted);
+}
+
+/* --- Segment popover editor --------------------------------------------- */
+.ds-popover {
+  position: fixed;
+  z-index: 30;
+  width: 232px;
+  transform: translate(-50%, calc(-100% - 12px));
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
+}
+.ds-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ds-popover-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ds-popover-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ds-muted);
+}
+.ds-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ds-popover-arrow {
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--ds-surface);
+  border-right: 1px solid var(--ds-border);
+  border-bottom: 1px solid var(--ds-border);
+}
+
+/* --- Focus reticle ------------------------------------------------------ */
+.ds-focus-reticle {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--ds-accent);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.35),
+    0 0 10px rgba(139, 92, 246, 0.6);
+  background: rgba(139, 92, 246, 0.15);
+  cursor: grab;
+  z-index: 6;
+  touch-action: none;
+}
+.ds-focus-reticle::before,
+.ds-focus-reticle::after {
+  content: "";
+  position: absolute;
+  background: var(--ds-accent);
+}
+.ds-focus-reticle::before {
+  left: 50%;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  transform: translateX(-50%);
+}
+.ds-focus-reticle::after {
+  top: 50%;
+  left: 3px;
+  right: 3px;
+  height: 2px;
+  transform: translateY(-50%);
+}
+.ds-focus-reticle:active {
+  cursor: grabbing;
+}
+.ds-focus-reticle.ds-active {
+  animation: ds-focus-pulse 1s ease-out 2;
+}
+.ds-focus-label {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--ds-accent);
+  padding: 2px 6px;
+  border-radius: 5px;
+  pointer-events: none;
+}
+@keyframes ds-focus-pulse {
+  0% {
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.35),
+      0 0 0 0 rgba(139, 92, 246, 0.7);
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.35),
+      0 0 0 16px rgba(139, 92, 246, 0);
+  }
+}
+
+/* --- Guided tour -------------------------------------------------------- */
+.ds-tour-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+.ds-tour {
+  width: min(720px, 100%);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.ds-tour-media {
+  aspect-ratio: 8 / 5;
+  background: var(--ds-surface-2);
+  border-bottom: 1px solid var(--ds-border);
+}
+.ds-tour-media img,
+.ds-tour-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ds-tour-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 30% 30%, var(--ds-accent-soft), transparent 60%),
+    linear-gradient(135deg, var(--ds-surface-2), var(--ds-surface));
+  background-size: 200% 200%;
+  animation: ds-tour-shift 6s ease-in-out infinite;
+}
+.ds-tour-emoji {
+  font-size: 64px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.25));
+}
+@keyframes ds-tour-shift {
+  0%,
+  100% {
+    background-position:
+      0% 0%,
+      0% 0%;
+  }
+  50% {
+    background-position:
+      100% 100%,
+      0% 0%;
+  }
+}
+.ds-tour-body {
+  padding: 20px 22px 8px;
+}
+.ds-tour-body h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.ds-tour-body p {
+  margin: 0;
+  color: var(--ds-muted);
+  line-height: 1.55;
+}
+.ds-tour-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  padding: 16px 0 4px;
+}
+.ds-tour-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ds-border);
+  transition: background 0.15s;
+}
+.ds-tour-dot.ds-active {
+  background: var(--ds-accent);
+}
+.ds-tour-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px 18px;
+}
+
+/* --- Confirm dialog (unsaved changes) ----------------------------------- */
+.ds-confirm {
+  width: min(400px, 100%);
+  padding: 22px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+.ds-confirm h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.ds-confirm p {
+  margin: 0 0 18px;
+  color: var(--ds-muted);
+  line-height: 1.55;
+}
+.ds-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --- Button tooltip (shortcut key + label) ------------------------------ */
+.ds-tip-wrap {
+  display: inline-flex;
+}
+.ds-tip {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  font-size: 12px;
+  color: var(--ds-text);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.ds-tip-key {
+  padding: 2px 6px;
+  font:
+    600 11px ui-monospace,
+    monospace;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  border-radius: 5px;
+  color: var(--ds-muted);
 }

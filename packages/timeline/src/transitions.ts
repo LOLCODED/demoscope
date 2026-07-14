@@ -34,8 +34,15 @@ export function buildRenderTimeline(
   manifest: CaptureManifest,
   options: TimelineOptions
 ): RenderFrame[] {
-  const { frames, meta } = manifest;
+  const { meta } = manifest;
   const { width: vw, height: vh } = meta.viewport;
+  // This legacy step renderer always draws a cursor; default frames without a
+  // known pointer position to the viewport center as older captures did.
+  const frames = manifest.frames.map((frame) => ({
+    ...frame,
+    cursorX: frame.cursorX ?? vw / 2,
+    cursorY: frame.cursorY ?? vh / 2,
+  }));
   const fps = manifest.fps;
   const transitionFrameCount = Math.round((options.transitionMs / 1000) * fps);
   const cursorMotionFrames = Math.round((300 / 1000) * fps);
@@ -237,7 +244,10 @@ function rectsEqual(a: ZoomRect, b: ZoomRect): boolean {
   return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 }
 
-function cursorDistance(a: CapturedFrame, b: CapturedFrame): number {
+function cursorDistance(
+  a: { cursorX: number; cursorY: number },
+  b: { cursorX: number; cursorY: number }
+): number {
   const dx = a.cursorX - b.cursorX;
   const dy = a.cursorY - b.cursorY;
   return Math.sqrt(dx * dx + dy * dy);

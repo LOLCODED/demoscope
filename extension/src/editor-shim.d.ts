@@ -8,12 +8,10 @@ declare module "@demoscope/editor" {
     LoadedRecording,
     Surface,
   } from "@demoscope/browser-kit";
-  import type { VideoEditModel } from "@demoscope/timeline";
 
   export interface EditorHost {
     recording: LoadedRecording;
     capabilities: Capabilities;
-    onModelChange?: (model: VideoEditModel) => void;
   }
 
   export const Editor: Component<{ host: EditorHost }>;

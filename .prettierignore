@@ -4,3 +4,10 @@ coverage/
 package-lock.json
 extension/package-lock.json
 *.tsbuildinfo
+extension/scripts/tour-footage/site/film.js
+extension/scripts/tour-footage/site/sample/
+extension/scripts/tour-footage/package-lock.json
+extension/scripts/tour-footage/profile/
+extension/scripts/tour-footage/clips/
+extension/scripts/tour-footage/gifs/
+extension/scripts/tour-footage/gifs-opt/

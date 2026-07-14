@@ -102,9 +102,21 @@ startBtn.addEventListener("click", async () => {
     return;
   }
 
-  chrome.tabs.sendMessage(tab.id, { type: "start-recording" }).catch((err) => {
-    console.warn("Content script not available:", err.message);
-  });
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: "start-recording" });
+  } catch {
+    // The tab predates the extension being (re)loaded, so it has no content
+    // script and the first actions would silently go unrecorded. Inject it;
+    // on load it sees the active recording via get-status and starts itself.
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ["content.js"],
+      });
+    } catch (err) {
+      console.warn("Content script not available:", (err as Error).message);
+    }
+  }
 
   showRecording();
   stepCountEl.textContent = "0";

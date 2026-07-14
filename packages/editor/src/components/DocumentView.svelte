@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import {
     dataUrlToBytes,
+    loadEditDoc,
+    saveWorkingEdit,
     slugify,
     type LoadedRecording,
   } from "@demoscope/browser-kit";
@@ -11,25 +14,79 @@
     documentPrintHtml,
     type DocumentStep,
   } from "../core/document.js";
+  import type { EditorController } from "../editor-controller.js";
+  import VersionsPanel from "./VersionsPanel.svelte";
 
-  const { recording }: { recording: LoadedRecording } = $props();
+  const {
+    recording,
+    onController,
+  }: {
+    recording: LoadedRecording;
+    onController?: (c: EditorController) => void;
+  } = $props();
 
   let steps = $state<DocumentStep[]>([]);
   let ready = $state(false);
+  /** Freshly-built steps, kept pristine as the "Original" baseline. */
+  let autoSteps = $state<DocumentStep[]>([]);
+  let previewing = $state(false);
+  let previewBackup: DocumentStep[] | null = null;
+  // JSON of the last saved steps; drives the unsaved-changes guard.
+  let savedBaseline = $state("");
 
-  // Build the initial step list once for this recording.
+  const cloneSteps = (list: DocumentStep[]) => list.map((step) => ({ ...step }));
+  const stepsJson = () => JSON.stringify($state.snapshot(steps));
+
+  const isDirty = () =>
+    ready && !previewing && !!recording.id && stepsJson() !== savedBaseline;
+
+  async function persist(): Promise<void> {
+    if (!recording.id) return;
+    const snapshot = $state.snapshot(steps) as DocumentStep[];
+    await saveWorkingEdit(recording.id, "document", snapshot);
+    savedBaseline = JSON.stringify(snapshot);
+  }
+
+  onMount(() => onController?.({ isDirty, save: persist }));
+
   $effect(() => {
     let cancelled = false;
-    void buildSteps().then((built) => {
-      if (!cancelled) {
-        steps = built;
-        ready = true;
-      }
-    });
+    void init(() => cancelled);
     return () => {
       cancelled = true;
     };
   });
+
+  async function init(isCancelled: () => boolean): Promise<void> {
+    const built = await buildSteps();
+    const doc = recording.id
+      ? await loadEditDoc<DocumentStep[]>(recording.id, "document")
+      : undefined;
+    if (isCancelled()) return;
+    autoSteps = built;
+    steps = doc ? doc.working : cloneSteps(built);
+    savedBaseline = stepsJson();
+    ready = true;
+  }
+
+  function previewVersion(model: DocumentStep[]): void {
+    previewBackup ??= $state.snapshot(steps) as DocumentStep[];
+    previewing = true;
+    steps = cloneSteps(model);
+  }
+
+  function exitPreview(): void {
+    if (!previewBackup) return;
+    steps = previewBackup;
+    previewBackup = null;
+    previewing = false;
+  }
+
+  function restoreVersion(model: DocumentStep[]): void {
+    previewBackup = null;
+    previewing = false;
+    steps = cloneSteps(model);
+  }
 
   /** Reuse the original screenshot if present, else rasterize the frame source. */
   async function stepImage(timeMs: number, index: number): Promise<string> {
@@ -180,5 +237,20 @@
       <button class="ds-btn" onclick={downloadBundle}>Download Markdown + images</button>
       <button class="ds-btn-primary" onclick={print}>Print / Save PDF</button>
     </div>
+    {#if recording.id}
+      <VersionsPanel
+        recordingId={recording.id}
+        kind="document"
+        baseline={autoSteps}
+        getCurrent={() => $state.snapshot(steps) as DocumentStep[]}
+        onPreview={previewVersion}
+        onExitPreview={exitPreview}
+        onRestore={(model) => {
+          restoreVersion(model);
+          void persist();
+        }}
+        onSaved={persist}
+      />
+    {/if}
   {/if}
 </div>

@@ -1,7 +1,7 @@
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 import { GIFEncoder, quantize, applyPalette } from "gifenc";
 
-export type OutputFormat = "mp4" | "gif";
+export type OutputFormat = "mp4" | "webm" | "gif";
 
 export interface EncoderOptions {
   width: number;
@@ -17,6 +17,67 @@ export interface EncoderSink {
 
 export function isMp4Supported(): boolean {
   return typeof VideoEncoder !== "undefined";
+}
+
+/** WebM rides MediaRecorder + canvas capture, so it works where WebCodecs
+ * H.264 doesn't (Firefox, Chromium builds without proprietary codecs). */
+export function isWebmSupported(): boolean {
+  return (
+    typeof MediaRecorder !== "undefined" &&
+    typeof HTMLCanvasElement !== "undefined" &&
+    "captureStream" in HTMLCanvasElement.prototype &&
+    MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+  );
+}
+
+/**
+ * Encode composited frames to WebM (VP9) via MediaRecorder. The recorder
+ * stamps frames with wall-clock time, so frames are fed at the real frame
+ * rate — encoding takes roughly the clip's duration, in exchange for running
+ * on every browser (no WebCodecs requirement).
+ */
+export function createWebmEncoder(opts: EncoderOptions): EncoderSink {
+  const { width, height, fps } = opts;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  const stream = canvas.captureStream(0);
+  const track = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack;
+  const chunks: Blob[] = [];
+  const recorder = new MediaRecorder(stream, {
+    mimeType: "video/webm;codecs=vp9",
+    videoBitsPerSecond: Math.min(
+      8_000_000,
+      Math.max(1_000_000, Math.round(width * height * fps * 0.15))
+    ),
+  });
+  recorder.ondataavailable = (event) => {
+    if (event.data.size > 0) chunks.push(event.data);
+  };
+  recorder.start();
+
+  const frameMs = 1000 / fps;
+  let nextDue = performance.now();
+
+  return {
+    async addFrame(source) {
+      const now = performance.now();
+      if (now < nextDue) await new Promise((r) => setTimeout(r, nextDue - now));
+      nextDue = Math.max(nextDue + frameMs, performance.now());
+      ctx.drawImage(source, 0, 0, width, height);
+      track.requestFrame();
+    },
+    async finish() {
+      const stopped = new Promise<void>((resolve) => {
+        recorder.onstop = () => resolve();
+      });
+      recorder.stop();
+      track.stop();
+      await stopped;
+      return new Blob(chunks, { type: "video/webm" });
+    },
+  };
 }
 
 /** Pick the highest AVC profile/level the hardware/software encoder accepts. */
@@ -129,5 +190,7 @@ export async function createEncoder(
   format: OutputFormat,
   opts: EncoderOptions
 ): Promise<EncoderSink> {
-  return format === "mp4" ? createMp4Encoder(opts) : createGifEncoder(opts);
+  if (format === "mp4") return createMp4Encoder(opts);
+  if (format === "webm") return createWebmEncoder(opts);
+  return createGifEncoder(opts);
 }

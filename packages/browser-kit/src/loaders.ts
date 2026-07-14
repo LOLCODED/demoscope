@@ -1,4 +1,5 @@
 import {
+  DEFAULT_TIMINGS,
   deriveVideoEditModel,
   type CompositedFrame,
   type VideoEditModel,
@@ -12,7 +13,12 @@ import {
 } from "./frame-source.js";
 import { computeOutputDims, type OutputDims } from "./frame-dims.js";
 import type { CaptureManifest } from "./capture-bundle.js";
-import { loadRecordingRecord, loadVideoBlob } from "./recording-store.js";
+import {
+  loadEditDoc,
+  loadRecordingRecord,
+  loadVideoBlob,
+  type StoredRecordingRecord,
+} from "./recording-store.js";
 
 /** A recording ready to hand to the editor, whatever file it came from. */
 export interface LoadedRecording {
@@ -22,8 +28,12 @@ export interface LoadedRecording {
   title: string;
   fps: number;
   dims: OutputDims;
-  /** Editable cinematics model (video mode). */
+  /** Stable id of the stored recording (present when loaded from the library). */
+  id?: string;
+  /** Editable cinematics model (video mode); the saved working copy if any. */
   model?: VideoEditModel;
+  /** Freshly auto-derived model, never overwritten — the "Original" baseline. */
+  autoModel?: VideoEditModel;
   /** Pre-built render frames (screenshot mode; non-editable timeline). */
   frames: CompositedFrame[];
   keyOf: (frame: CompositedFrame) => number;
@@ -32,10 +42,7 @@ export interface LoadedRecording {
 }
 
 const videoOptions = () => ({
-  transitionMs: 500,
-  holdMs: 1200,
-  annotationHoldMs: 2000,
-  cursorGlideMs: 400,
+  ...DEFAULT_TIMINGS,
   showAnnotations: true,
 });
 
@@ -95,6 +102,7 @@ async function buildVideoRecording(
     fps: manifest.fps,
     dims,
     model,
+    autoModel: model,
     frames: [],
     keyOf: (frame) => (frame as VideoRenderFrame).videoTimeMs,
     videoBlob: blob,
@@ -163,6 +171,7 @@ export async function buildScreenshotRecording(
     fps: manifest.fps,
     dims,
     model,
+    autoModel: model,
     frames: [],
     keyOf: (frame) => (frame as VideoRenderFrame).videoTimeMs,
   };
@@ -181,6 +190,15 @@ export async function loadActiveRecording(): Promise<LoadedRecording | null> {
   const record = await loadRecordingRecord();
   if (!record) return null;
   const { manifest, title } = record;
+  const built = await buildActiveRecording(record, manifest, title);
+  return withSavedVideoEdits({ ...built, id: record.id });
+}
+
+async function buildActiveRecording(
+  record: StoredRecordingRecord,
+  manifest: CaptureManifest,
+  title: string
+): Promise<LoadedRecording> {
   if (record.mode === "video") {
     const blob = await loadVideoBlob();
     if (!blob) throw new Error("recorded video missing");
@@ -192,6 +210,15 @@ export async function loadActiveRecording(): Promise<LoadedRecording | null> {
   const loaded = await buildScreenshotRecording(bitmaps, manifest, title);
   // Keep the original PNGs so the step document reuses them verbatim.
   return { ...loaded, images };
+}
+
+/** Swap in the saved working video model if the user has edited before. */
+async function withSavedVideoEdits(
+  loaded: LoadedRecording
+): Promise<LoadedRecording> {
+  if (!loaded.id || !loaded.model) return loaded;
+  const doc = await loadEditDoc<VideoEditModel>(loaded.id, "video");
+  return doc ? { ...loaded, model: doc.working } : loaded;
 }
 
 async function readManifest(file: File): Promise<CaptureManifest> {

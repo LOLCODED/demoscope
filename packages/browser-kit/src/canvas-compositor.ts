@@ -109,11 +109,8 @@ export class CanvasCompositor {
 
   private drawCursor(frame: CompositedFrame): void {
     if (!this.cursorImages) return;
+    if (frame.cursorX === undefined || frame.cursorY === undefined) return;
     const { zoomRect } = frame;
-    const shape: CursorShape =
-      frame.isClick && this.opts.clickCursor === "pointer"
-        ? "pointer"
-        : "arrow";
     const rel = cursorInFrame(
       frame.cursorX,
       frame.cursorY,
@@ -121,6 +118,11 @@ export class CanvasCompositor {
       this.opts.outputWidth,
       this.opts.outputHeight
     );
+    if (frame.cursorHighlight) this.drawHighlight(rel.x, rel.y, frame.isClick);
+    const shape: CursorShape =
+      frame.isClick && this.opts.clickCursor === "pointer"
+        ? "pointer"
+        : "arrow";
     const placement = cursorPlacement(
       rel.x,
       rel.y,
@@ -128,6 +130,23 @@ export class CanvasCompositor {
       this.opts.cursorSize
     );
     this.ctx.drawImage(this.cursorImages[shape], placement.left, placement.top);
+  }
+
+  /** Soft yellow circle behind the glyph so the pointer is easy to spot. */
+  private drawHighlight(x: number, y: number, isClick: boolean): void {
+    const { ctx } = this;
+    const radius = this.opts.cursorSize * (isClick ? 1.3 : 1.05);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = isClick
+      ? "rgba(255, 213, 0, 0.5)"
+      : "rgba(255, 213, 0, 0.35)";
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255, 193, 7, 0.65)";
+    ctx.stroke();
+    ctx.restore();
   }
 
   /**

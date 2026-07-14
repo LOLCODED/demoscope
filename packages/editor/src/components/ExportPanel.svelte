@@ -17,7 +17,9 @@
   const hasMetadata = $derived(store.recording.manifest.frames.length > 0);
   const images = $derived(store.recording.images ?? []);
 
-  let format = $state<OutputFormat>(caps.canEncodeMp4 ? "mp4" : "gif");
+  let format = $state<OutputFormat>(
+    caps.canEncodeMp4 ? "mp4" : caps.canEncodeWebm ? "webm" : "gif"
+  );
   let busy = $state(false);
   let progress = $state(0);
   let progressLabel = $state("");
@@ -85,14 +87,23 @@
       `${name}-capture.zip`
     );
   }
+
+  function setCursorHighlight(on: boolean): void {
+    store.commit((m) => {
+      m.cursorHighlight = on || undefined;
+    });
+  }
 </script>
 
 <div class="ds-export">
   <h3>Export</h3>
   <div class="ds-export-row">
-    <select bind:value={format} disabled={busy}>
+    <select bind:value={format} disabled={busy} aria-label="Export format">
       {#if caps.canEncodeMp4}
         <option value="mp4">MP4 (H.264)</option>
+      {/if}
+      {#if caps.canEncodeWebm}
+        <option value="webm">WebM (VP9)</option>
       {/if}
       {#if caps.canEncodeGif}
         <option value="gif">GIF</option>
@@ -102,6 +113,15 @@
       {busy ? "Rendering…" : "Generate"}
     </button>
   </div>
+
+  <label class="ds-field-check">
+    <input
+      type="checkbox"
+      checked={store.model.cursorHighlight ?? false}
+      onchange={(e) => setCursorHighlight(e.currentTarget.checked)}
+    />
+    Highlight cursor
+  </label>
 
   {#if caps.canDownloadRawWebm}
     <button class="ds-btn-ghost" onclick={downloadSource} disabled={busy}>
@@ -122,7 +142,7 @@
 
   {#if resultUrl}
     <div class="ds-result">
-      {#if resultFormat === "mp4"}
+      {#if resultFormat === "mp4" || resultFormat === "webm"}
         <video src={resultUrl} controls autoplay loop muted></video>
       {:else}
         <img src={resultUrl} alt="Rendered preview" />

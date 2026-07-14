@@ -1,4 +1,4 @@
-import { isMp4Supported } from "./webcodecs-encoder.js";
+import { isMp4Supported, isWebmSupported } from "./webcodecs-encoder.js";
 
 export type Surface = "extension" | "web";
 
@@ -10,6 +10,7 @@ export type Surface = "extension" | "web";
 export interface Capabilities {
   surface: Surface;
   canEncodeMp4: boolean;
+  canEncodeWebm: boolean;
   canEncodeGif: boolean;
   canDownloadRawWebm: boolean;
   canRecord: boolean;
@@ -23,6 +24,7 @@ export function detectCapabilities(
   return {
     surface,
     canEncodeMp4: isMp4Supported(),
+    canEncodeWebm: isWebmSupported(),
     canEncodeGif: true,
     canDownloadRawWebm: opts.hasVideo ?? false,
     canRecord: opts.canRecord ?? surface === "extension",

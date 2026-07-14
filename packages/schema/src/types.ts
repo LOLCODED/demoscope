@@ -85,8 +85,10 @@ export interface CapturedFrame {
   path: string;
   index: number;
   timestamp: number;
-  cursorX: number;
-  cursorY: number;
+  /** Unset when the interaction has no known pointer position (e.g. the
+   * initial page frame) — the renderer then hides the synthetic cursor. */
+  cursorX?: number;
+  cursorY?: number;
   stepId?: string;
   action?: string;
   zoom?: {

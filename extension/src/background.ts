@@ -214,8 +214,8 @@ function sendToOffscreen(msg: Record<string, any>): Promise<any> {
 async function handleCaptureEvent(
   msg: {
     action: string;
-    cursorX: number;
-    cursorY: number;
+    cursorX?: number;
+    cursorY?: number;
     stepId?: string;
     annotation?: string;
     isClick?: boolean;
@@ -248,7 +248,12 @@ async function handleCaptureEvent(
     }
   }
 
-  const shouldZoom = ["click", "type", "keypress"].includes(msg.action);
+  const zoom =
+    ["click", "type", "keypress"].includes(msg.action) &&
+    msg.cursorX !== undefined &&
+    msg.cursorY !== undefined
+      ? { level: 1.8, padding: 60, centerX: msg.cursorX, centerY: msg.cursorY }
+      : undefined;
   recording.frames.push({
     path:
       recording.mode === "screenshot"
@@ -263,9 +268,7 @@ async function handleCaptureEvent(
     annotation: msg.annotation,
     isClick: msg.isClick,
     typedText: msg.typedText,
-    zoom: shouldZoom
-      ? { level: 1.8, padding: 60, centerX: msg.cursorX, centerY: msg.cursorY }
-      : undefined,
+    zoom,
   });
   recording.frameIndex++;
 

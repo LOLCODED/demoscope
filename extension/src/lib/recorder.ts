@@ -27,8 +27,11 @@ export interface RecordedStep {
 
 export interface InteractionEvent {
   action: string;
-  cursorX: number;
-  cursorY: number;
+  /** Unset when no pointer position is known yet (e.g. the initial page
+   * frame), so the renderer hides the synthetic cursor instead of showing it
+   * parked at a made-up position. */
+  cursorX?: number;
+  cursorY?: number;
   stepId: string;
   annotation?: string;
   isClick?: boolean;
@@ -54,8 +57,7 @@ let pendingType: {
 let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 let scrollAccum = 0;
 let scrollTarget: string | null = null;
-let lastCursorX = 0;
-let lastCursorY = 0;
+let lastCursor: { x: number; y: number } | null = null;
 
 function nextId(): string {
   return `step-${++stepCounter}`;
@@ -67,6 +69,7 @@ export function startRecording(callback?: InteractionCallback): void {
   pendingType = null;
   scrollAccum = 0;
   scrollTarget = null;
+  lastCursor = null;
   recording = true;
   onInteraction = callback ?? null;
 
@@ -89,8 +92,6 @@ export function startRecording(callback?: InteractionCallback): void {
 
   emitCapture({
     action: "navigate",
-    cursorX: window.innerWidth / 2,
-    cursorY: window.innerHeight / 2,
     stepId: id,
     immediate: true,
   });
@@ -130,8 +131,7 @@ function emitCapture(event: InteractionEvent): void {
 // --- Mouse tracking ---
 
 function onMouseMove(e: MouseEvent): void {
-  lastCursorX = e.clientX;
-  lastCursorY = e.clientY;
+  lastCursor = { x: e.clientX, y: e.clientY };
 }
 
 // --- Event handlers ---
@@ -144,6 +144,7 @@ function onClickCapture(e: MouseEvent): void {
   flushPendingType();
   flushPendingScroll();
 
+  lastCursor = { x: e.clientX, y: e.clientY };
   const selector = safeSelector(target);
   const label = getElementLabel(target);
   const id = nextId();
@@ -198,8 +199,8 @@ function onKeydown(e: KeyboardEvent): void {
 
   emitCapture({
     action: "keypress",
-    cursorX: lastCursorX,
-    cursorY: lastCursorY,
+    cursorX: lastCursor?.x,
+    cursorY: lastCursor?.y,
     stepId: id,
     annotation: `Press ${e.key}`,
   });
@@ -267,8 +268,8 @@ function flushPendingType(): void {
 
   emitCapture({
     action: "type",
-    cursorX: lastCursorX,
-    cursorY: lastCursorY,
+    cursorX: lastCursor?.x,
+    cursorY: lastCursor?.y,
     stepId: step.stepId,
     annotation: step.text ? `Type "${step.text}"` : undefined,
     typedText: step.text,
@@ -292,8 +293,8 @@ function flushPendingScroll(): void {
 
     emitCapture({
       action: "scroll",
-      cursorX: lastCursorX,
-      cursorY: lastCursorY,
+      cursorX: lastCursor?.x,
+      cursorY: lastCursor?.y,
       stepId: id,
     });
 
@@ -349,8 +350,8 @@ function onNavigation(): void {
 
   emitCapture({
     action: "navigate",
-    cursorX: lastCursorX,
-    cursorY: lastCursorY,
+    cursorX: lastCursor?.x,
+    cursorY: lastCursor?.y,
     stepId: id,
   });
 }

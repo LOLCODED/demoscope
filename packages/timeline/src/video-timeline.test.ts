@@ -219,3 +219,66 @@ describe("editable video model", () => {
     expect(compileVideoModel(model).sourceTimeAt(1900)).toBe(1000);
   });
 });
+
+describe("follow-cursor zooms", () => {
+  const followModel = () => {
+    const model = deriveVideoEditModel(manifest([NAV], 6000), OPTIONS);
+    model.cursorGlideMs = 200;
+    model.cursors = [
+      { tMs: 0, x: 200, y: 150, isClick: false },
+      { tMs: 4000, x: 600, y: 300, isClick: false },
+    ];
+    model.zooms = [
+      {
+        id: "f",
+        startMs: 1000,
+        transitionMs: 400,
+        holdMs: 3000,
+        centerX: 320,
+        centerY: 180,
+        level: 2,
+        padding: 0,
+        followCursor: true,
+      },
+    ];
+    return model;
+  };
+
+  it("tracks the interpolated cursor while held", () => {
+    const compiled = compileVideoModel(followModel());
+    // Cursor rests at (200,150): rect is the cursor-centered 2× crop.
+    expect(compiled.frameAt(2000).zoomRect).toEqual({
+      x: 40,
+      y: 60,
+      w: 320,
+      h: 180,
+    });
+    // After the glide to (600,300) the rect re-centers, clamped to bounds.
+    expect(compiled.frameAt(4400).zoomRect).toEqual({
+      x: 320,
+      y: 180,
+      w: 320,
+      h: 180,
+    });
+  });
+
+  it("shows the full viewport before the zoom and after easing out", () => {
+    const compiled = compileVideoModel(followModel());
+    const full = { x: 0, y: 0, w: 640, h: 360 };
+    expect(compiled.frameAt(500).zoomRect).toEqual(full);
+    expect(compiled.frameAt(5500).zoomRect).toEqual(full);
+  });
+
+  it("falls back to the fixed center when there is no cursor data", () => {
+    const model = followModel();
+    model.cursors = [];
+    model.zooms[0].centerX = 200;
+    model.zooms[0].centerY = 150;
+    expect(compileVideoModel(model).frameAt(2000).zoomRect).toEqual({
+      x: 40,
+      y: 60,
+      w: 320,
+      h: 180,
+    });
+  });
+});

@@ -1,4 +1,5 @@
 import {
+  DEFAULT_TIMINGS,
   compileVideoModel,
   type CropRect,
   type CutSegment,
@@ -43,12 +44,12 @@ export function addZoom(model: VideoEditModel, atMs: number): string {
   const id = `zoom-${crypto.randomUUID()}`;
   model.zooms.push({
     id,
-    startMs: Math.max(0, atMs - 500),
-    transitionMs: 500,
-    holdMs: 1200,
+    startMs: Math.max(0, atMs - DEFAULT_TIMINGS.transitionMs),
+    transitionMs: DEFAULT_TIMINGS.transitionMs,
+    holdMs: DEFAULT_TIMINGS.holdMs,
     centerX: model.viewport.width / 2,
     centerY: model.viewport.height / 2,
-    level: 2,
+    level: 1.5,
     padding: 0,
   });
   return id;
@@ -59,7 +60,7 @@ export function addSubtitle(model: VideoEditModel, atMs: number): string {
   model.subtitles.push({
     id,
     startMs: atMs,
-    endMs: Math.min(model.durationMs, atMs + 2000),
+    endMs: Math.min(model.durationMs, atMs + DEFAULT_TIMINGS.annotationHoldMs),
     text: "New subtitle",
   });
   return id;

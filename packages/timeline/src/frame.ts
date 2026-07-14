@@ -9,11 +9,14 @@ import { type ZoomRect } from "./zoom.js";
 export interface CompositedFrame {
   /** The zoom crop rectangle to apply (viewport CSS pixels). */
   zoomRect: ZoomRect;
-  /** Cursor position in viewport coordinates (pre-zoom). */
-  cursorX: number;
-  cursorY: number;
+  /** Cursor position in viewport coordinates (pre-zoom). Unset hides the
+   * synthetic cursor (no pointer position is known at this time). */
+  cursorX?: number;
+  cursorY?: number;
   /** Whether this frame shows a click (drives the pointer glyph). */
   isClick: boolean;
   /** Text annotation to overlay. */
   annotation?: string;
+  /** Draw a soft highlight circle around the cursor glyph. */
+  cursorHighlight?: boolean;
 }
