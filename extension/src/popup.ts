@@ -5,6 +5,8 @@ const stopBtn = document.getElementById("stop-btn")!;
 const titleInput = document.getElementById("title-input") as HTMLInputElement;
 const stepCountEl = document.getElementById("step-count")!;
 const exportNote = document.getElementById("export-note")!;
+const savedRecordings = document.getElementById("saved-recordings")!;
+const savedList = document.getElementById("saved-list")!;
 
 async function getActiveTab(): Promise<chrome.tabs.Tab> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -36,6 +38,47 @@ async function checkStatus(): Promise<void> {
   } catch {
     // background not ready
   }
+}
+
+async function renderSavedRecordings(): Promise<void> {
+  const recordings = await listRecordings();
+  savedRecordings.classList.toggle("hidden", recordings.length === 0);
+  savedList.replaceChildren(...recordings.slice(0, 5).map(savedRecordingItem));
+}
+
+function savedRecordingItem(record: RecordingListItem): HTMLElement {
+  const item = document.createElement("article");
+  item.className = "saved-item";
+  const open = document.createElement("button");
+  open.className = "saved-open";
+  open.innerHTML = `<strong>${escapeHtml(record.title)}</strong><span>${record.mode} · ${record.frameCount} steps</span>`;
+  open.addEventListener("click", async () => {
+    await selectRecording(record.id);
+    await chrome.tabs.create({ url: chrome.runtime.getURL("render.html") });
+    window.close();
+  });
+  const rename = document.createElement("button");
+  rename.className = "saved-rename";
+  rename.title = "Rename recording";
+  rename.textContent = "Rename";
+  rename.addEventListener("click", async () => {
+    const title = window.prompt("Recording title", record.title);
+    if (!title?.trim()) return;
+    await renameRecording(record.id, title);
+    await renderSavedRecordings();
+  });
+  item.append(open, rename);
+  return item;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(
+    /[&<>"']/g,
+    (char) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        char
+      ]!
+  );
 }
 
 startBtn.addEventListener("click", async () => {
@@ -107,4 +150,10 @@ setInterval(async () => {
   }
 }, 1000);
 
-checkStatus();
+void Promise.all([checkStatus(), renderSavedRecordings()]);
+import {
+  listRecordings,
+  renameRecording,
+  selectRecording,
+  type RecordingListItem,
+} from "@demoscope/browser-kit";

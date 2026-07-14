@@ -1,23 +1,10 @@
-import { zipSync, strToU8 } from "fflate";
+import {
+  type CapturedFrame,
+  type CaptureManifest,
+  saveRecordingRecord,
+} from "@demoscope/browser-kit";
 
-interface CapturedFrame {
-  path: string;
-  index: number;
-  timestamp: number;
-  cursorX: number;
-  cursorY: number;
-  stepId?: string;
-  action?: string;
-  annotation?: string;
-  isClick?: boolean;
-  typedText?: string;
-  zoom?: {
-    level: number;
-    padding: number;
-    centerX: number;
-    centerY: number;
-  };
-}
+type CaptureMode = "screenshot" | "video";
 
 interface RecordingState {
   tabId: number;
@@ -28,6 +15,8 @@ interface RecordingState {
   viewport: { width: number; height: number };
   baseUrl: string;
   title: string;
+  mode: CaptureMode;
+  videoStartEpoch: number;
 }
 
 let recording: RecordingState | null = null;
@@ -39,11 +28,14 @@ let captureQueue: Promise<unknown> = Promise.resolve();
 // --- Message handling ---
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.target === "offscreen") return; // handled by the offscreen document
+
   switch (msg.type) {
     case "start-recording":
-      handleStart(msg.tabId, msg.title);
-      sendResponse({ ok: true });
-      break;
+      handleStart(msg.tabId, msg.title).then((mode) =>
+        sendResponse({ ok: true, mode })
+      );
+      return true;
 
     case "stop-recording":
       // Wait for any pending captures to finish before closing out.
@@ -77,7 +69,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 // --- Recording lifecycle ---
 
-function handleStart(tabId: number, title: string): void {
+async function handleStart(tabId: number, title: string): Promise<CaptureMode> {
   recording = {
     tabId,
     startTime: Date.now(),
@@ -87,10 +79,37 @@ function handleStart(tabId: number, title: string): void {
     viewport: { width: 0, height: 0 },
     baseUrl: "",
     title: title || "Recording",
+    mode: "screenshot",
+    videoStartEpoch: 0,
   };
 
   chrome.action.setBadgeText({ text: "REC", tabId });
   chrome.action.setBadgeBackgroundColor({ color: "#dc2626", tabId });
+
+  // Prefer continuous-video capture (smooth) via silent tab capture into an
+  // offscreen MediaRecorder; fall back to per-event screenshots if it fails.
+  try {
+    const streamId = await getMediaStreamId(tabId);
+    await ensureOffscreen();
+    const resp = await sendToOffscreen({ type: "start-capture", streamId });
+    if (resp?.ok) {
+      recording.mode = "video";
+      recording.videoStartEpoch = resp.videoStartEpoch;
+    } else {
+      console.warn("offscreen capture failed, using screenshots:", resp?.error);
+      await closeOffscreen();
+    }
+  } catch (err) {
+    console.warn("tabCapture unavailable, using screenshots:", err);
+  }
+
+  return recording.mode;
+}
+
+interface StoppedVideo {
+  mime: string;
+  durationMs: number;
+  videoStartEpoch: number;
 }
 
 async function handleStop(): Promise<{ ok: boolean; stepCount?: number }> {
@@ -98,35 +117,96 @@ async function handleStop(): Promise<{ ok: boolean; stepCount?: number }> {
 
   const state = recording;
   recording = null;
-
   chrome.action.setBadgeText({ text: "", tabId: state.tabId });
 
-  if (state.frames.length === 0) {
-    return { ok: true, stepCount: 0 };
+  // Stop the offscreen recorder (which saved its own blob) and grab the result.
+  let video: StoppedVideo | null = null;
+  if (state.mode === "video") {
+    const result = await sendToOffscreen({ type: "stop-capture" });
+    await closeOffscreen();
+    if (result?.ok) video = result;
   }
 
-  // Build the zip
-  const zipData = buildZip(state);
-  const filename =
-    state.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-capture.zip";
+  if (state.frames.length === 0) return { ok: true, stepCount: 0 };
 
-  // Convert to base64 data URL (service workers can't use createObjectURL)
-  const base64 = uint8ToBase64(zipData);
-  const dataUrl = `data:application/zip;base64,${base64}`;
+  const manifest = buildManifest(state);
+  if (video) {
+    manifest.video = { mime: video.mime, durationMs: video.durationMs };
+    applyVideoTimings(manifest, state.startTime, video.videoStartEpoch);
+    await saveRecordingRecord({ title: state.title, mode: "video", manifest });
+  } else {
+    await saveRecordingRecord({
+      title: state.title,
+      mode: "screenshot",
+      manifest,
+      images: state.imageDataUrls,
+    });
+  }
 
-  await chrome.downloads.download({ url: dataUrl, filename, saveAs: true });
+  // The render page owns preview + export; open it to finish the flow.
+  await chrome.tabs.create({ url: chrome.runtime.getURL("render.html") });
 
   return { ok: true, stepCount: state.frames.length };
 }
 
-function uint8ToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
+function buildManifest(state: RecordingState): CaptureManifest {
+  return {
+    meta: {
+      title: state.title,
+      baseUrl: state.baseUrl,
+      viewport: state.viewport,
+      defaultWait: 500,
+    },
+    fps: 30,
+    frames: state.frames,
+  };
+}
+
+/** Anchor each event to the video clock: videoTimeMs = eventEpoch - videoStart. */
+function applyVideoTimings(
+  manifest: CaptureManifest,
+  recordingStart: number,
+  videoStartEpoch: number
+): void {
+  const durationMs = manifest.video?.durationMs ?? Infinity;
+  for (const frame of manifest.frames) {
+    const eventEpoch = recordingStart + frame.timestamp;
+    frame.videoTimeMs = Math.max(
+      0,
+      Math.min(eventEpoch - videoStartEpoch, durationMs)
+    );
   }
-  return btoa(binary);
+}
+
+// --- Offscreen document (video capture host) ---
+
+function getMediaStreamId(tabId: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
+      const err = chrome.runtime.lastError;
+      if (err || !streamId) reject(err ?? new Error("no streamId"));
+      else resolve(streamId);
+    });
+  });
+}
+
+async function ensureOffscreen(): Promise<void> {
+  if (await chrome.offscreen.hasDocument()) return;
+  await chrome.offscreen.createDocument({
+    url: "offscreen.html",
+    reasons: [chrome.offscreen.Reason.USER_MEDIA],
+    justification: "Record the active tab as video for the demo capture.",
+  });
+}
+
+async function closeOffscreen(): Promise<void> {
+  if (await chrome.offscreen.hasDocument())
+    await chrome.offscreen.closeDocument();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sendToOffscreen(msg: Record<string, any>): Promise<any> {
+  return chrome.runtime.sendMessage({ target: "offscreen", ...msg });
 }
 
 // --- Event capture ---
@@ -140,6 +220,7 @@ async function handleCaptureEvent(
     annotation?: string;
     isClick?: boolean;
     typedText?: string;
+    immediate?: boolean;
     viewport: { width: number; height: number };
     baseUrl: string;
   },
@@ -147,35 +228,32 @@ async function handleCaptureEvent(
 ): Promise<{ ok: boolean; frameCount: number }> {
   if (!recording || !tabId) return { ok: false, frameCount: 0 };
 
-  // Update viewport/baseUrl from content script
   recording.viewport = msg.viewport;
   if (!recording.baseUrl) recording.baseUrl = msg.baseUrl;
 
-  // Small delay to let the page update after the interaction
-  await sleep(150);
-
-  // Capture the visible tab
-  let dataUrl: string;
-  try {
-    dataUrl = await chrome.tabs.captureVisibleTab({ format: "png" });
-  } catch (err) {
-    console.warn("captureVisibleTab failed:", err);
-    return { ok: false, frameCount: recording.frames.length };
+  // Screenshot mode grabs a frame per interaction; video mode records only the
+  // interaction metadata (cursor/zoom/annotation) and reads pixels from the
+  // continuously-recorded video at render time.
+  if (recording.mode === "screenshot") {
+    // Let the page settle after an interaction before capturing. The initial
+    // frame is flagged `immediate` so the pristine starting state is captured
+    // at once, before the user's first action can navigate the page away.
+    if (!msg.immediate) await sleep(150);
+    try {
+      const dataUrl = await chrome.tabs.captureVisibleTab({ format: "png" });
+      recording.imageDataUrls.push(dataUrl);
+    } catch (err) {
+      console.warn("captureVisibleTab failed:", err);
+      return { ok: false, frameCount: recording.frames.length };
+    }
   }
 
-  // Auto-zoom on interactive events (click, type, keypress)
   const shouldZoom = ["click", "type", "keypress"].includes(msg.action);
-  const zoom = shouldZoom
-    ? {
-        level: 1.8,
-        padding: 60,
-        centerX: msg.cursorX,
-        centerY: msg.cursorY,
-      }
-    : undefined;
-
-  const frame: CapturedFrame = {
-    path: `frames/frame-${String(recording.frameIndex).padStart(4, "0")}.png`,
+  recording.frames.push({
+    path:
+      recording.mode === "screenshot"
+        ? `frames/frame-${String(recording.frameIndex).padStart(4, "0")}.png`
+        : "",
     index: recording.frameIndex,
     timestamp: Date.now() - recording.startTime,
     cursorX: msg.cursorX,
@@ -185,14 +263,12 @@ async function handleCaptureEvent(
     annotation: msg.annotation,
     isClick: msg.isClick,
     typedText: msg.typedText,
-    zoom,
-  };
-
-  recording.frames.push(frame);
-  recording.imageDataUrls.push(dataUrl);
+    zoom: shouldZoom
+      ? { level: 1.8, padding: 60, centerX: msg.cursorX, centerY: msg.cursorY }
+      : undefined,
+  });
   recording.frameIndex++;
 
-  // Update badge
   chrome.action.setBadgeText({
     text: String(recording.frames.length),
     tabId: recording.tabId,
@@ -203,36 +279,6 @@ async function handleCaptureEvent(
   });
 
   return { ok: true, frameCount: recording.frames.length };
-}
-
-// --- Zip building ---
-
-function buildZip(state: RecordingState): Uint8Array {
-  const manifest = {
-    meta: {
-      title: state.title,
-      baseUrl: state.baseUrl,
-      viewport: state.viewport,
-      defaultWait: 500,
-    },
-    fps: 30,
-    frames: state.frames,
-  };
-
-  const files: Record<string, Uint8Array> = {
-    "capture-manifest.json": strToU8(JSON.stringify(manifest, null, 2)),
-  };
-
-  // Convert data URLs to binary
-  for (let i = 0; i < state.imageDataUrls.length; i++) {
-    const dataUrl = state.imageDataUrls[i];
-    const base64 = dataUrl.split(",")[1];
-    const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-    const filename = `frames/frame-${String(i).padStart(4, "0")}.png`;
-    files[filename] = binary;
-  }
-
-  return zipSync(files, { level: 1 }); // fast compression
 }
 
 function sleep(ms: number): Promise<void> {

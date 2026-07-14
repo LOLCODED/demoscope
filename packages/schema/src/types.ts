@@ -99,12 +99,24 @@ export interface CapturedFrame {
   isClick?: boolean;
   /** Text the user typed for this step — drives the progressive typing animation. */
   typedText?: string;
+  /** Continuous-video mode: milliseconds into the recorded video at which this
+   * interaction occurred. When present (and the manifest has `video`), frames
+   * index into a video instead of a per-frame screenshot `path`. */
+  videoTimeMs?: number;
+}
+
+/** Present when a capture was recorded as one continuous video instead of
+ * per-interaction screenshots. Frames carry `videoTimeMs` offsets into it. */
+export interface CaptureVideoMeta {
+  mime: string;
+  durationMs: number;
 }
 
 export interface CaptureManifest {
   meta: StepFileMeta;
   fps: number;
   frames: CapturedFrame[];
+  video?: CaptureVideoMeta;
 }
 
 // --- Render config types ---

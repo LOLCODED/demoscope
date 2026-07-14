@@ -25,7 +25,7 @@ export interface RecordedStep {
   scrollSelector?: string;
 }
 
-export type InteractionCallback = (event: {
+export interface InteractionEvent {
   action: string;
   cursorX: number;
   cursorY: number;
@@ -33,7 +33,13 @@ export type InteractionCallback = (event: {
   annotation?: string;
   isClick?: boolean;
   typedText?: string;
-}) => void;
+  /** Capture the screenshot without the post-interaction settle delay. Set on
+   * the initial page frame so the pristine starting state isn't lost if the
+   * user acts within the settle window. */
+  immediate?: boolean;
+}
+
+export type InteractionCallback = (event: InteractionEvent) => void;
 
 let steps: RecordedStep[] = [];
 let stepCounter = 0;
@@ -86,6 +92,7 @@ export function startRecording(callback?: InteractionCallback): void {
     cursorX: window.innerWidth / 2,
     cursorY: window.innerHeight / 2,
     stepId: id,
+    immediate: true,
   });
 }
 
@@ -115,15 +122,7 @@ export function isRecording(): boolean {
 
 // --- Emit capture event ---
 
-function emitCapture(event: {
-  action: string;
-  cursorX: number;
-  cursorY: number;
-  stepId: string;
-  annotation?: string;
-  isClick?: boolean;
-  typedText?: string;
-}): void {
+function emitCapture(event: InteractionEvent): void {
   onInteraction?.(event);
   notifyBackground();
 }

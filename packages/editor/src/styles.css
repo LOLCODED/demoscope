@@ -1,0 +1,600 @@
+/* --- Theme palettes ----------------------------------------------------- */
+/* Light is the default; dark is applied via a `data-ds-theme="dark"` ancestor
+   or the themed element itself. Keeping every dark selector attribute-qualified
+   (specificity +1) lets it win over the plain-class light defaults, so the
+   editor inherits the app's theme even when nested. */
+/* Palette borrowed from the music-move app: a violet-accented terminal look.
+   Dark is the signature vibe; light is a matching high-contrast analog so the
+   theme toggle keeps working. */
+.ds-app,
+.ds-editor {
+  --ds-bg: #f4f4f5;
+  --ds-surface: #ffffff;
+  --ds-surface-2: #ededee;
+  --ds-border: #dcdce0;
+  --ds-text: #1a1a1a;
+  --ds-muted: #6b6b70;
+  --ds-accent: #8b5cf6;
+  --ds-accent-soft: #efeafe;
+  --ds-danger: #ef4444;
+  --ds-track: #e7e7ea;
+}
+[data-ds-theme="dark"] .ds-app,
+[data-ds-theme="dark"] .ds-editor,
+.ds-app[data-ds-theme="dark"],
+.ds-editor[data-ds-theme="dark"] {
+  --ds-bg: #0a0a0a;
+  --ds-surface: #111111;
+  --ds-surface-2: #1a1a1a;
+  --ds-border: #2a2a2a;
+  --ds-text: #ededed;
+  --ds-muted: #888888;
+  --ds-accent: #8b5cf6;
+  --ds-accent-soft: #241b3d;
+  --ds-danger: #ef4444;
+  --ds-track: #141414;
+}
+
+/* --- App shell ---------------------------------------------------------- */
+.ds-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font:
+    13px/1.45 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+}
+.ds-app button {
+  font: inherit;
+  cursor: pointer;
+}
+.ds-app-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--ds-surface);
+  border-bottom: 1px solid var(--ds-border);
+}
+.ds-app-title {
+  font-size: 14px;
+  font-weight: 650;
+}
+.ds-app-spacer {
+  flex: 1;
+}
+.ds-app-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.ds-app-body > .ds-editor {
+  flex: 1;
+}
+.ds-app-msg {
+  margin: auto;
+  padding: 48px 24px;
+  max-width: 420px;
+  text-align: center;
+  color: var(--ds-muted);
+}
+
+.ds-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font:
+    13px/1.45 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+}
+
+.ds-editor button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* --- Toolbar ------------------------------------------------------------ */
+.ds-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--ds-surface);
+  border-bottom: 1px solid var(--ds-border);
+}
+.ds-toolbar-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ds-toolbar-group + .ds-toolbar-group {
+  padding-left: 14px;
+  border-left: 1px solid var(--ds-border);
+}
+
+.ds-btn,
+.ds-btn-primary,
+.ds-btn-secondary,
+.ds-btn-ghost,
+.ds-btn-icon {
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface-2);
+  color: var(--ds-text);
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    transform 0.1s;
+}
+.ds-btn:hover,
+.ds-btn-icon:hover {
+  border-color: var(--ds-accent);
+}
+.ds-btn:active,
+.ds-btn-primary:active,
+.ds-btn-secondary:active,
+.ds-btn-ghost:active,
+.ds-btn-icon:active {
+  transform: scale(0.98);
+}
+.ds-btn.ds-active {
+  background: var(--ds-accent-soft);
+  border-color: var(--ds-accent);
+}
+.ds-btn-primary {
+  background: var(--ds-accent);
+  border-color: var(--ds-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.ds-btn-primary:hover {
+  filter: brightness(1.08);
+}
+.ds-btn-ghost {
+  background: transparent;
+  color: var(--ds-muted);
+}
+.ds-btn-icon {
+  width: 34px;
+  padding: 6px 0;
+  text-align: center;
+  font-size: 15px;
+}
+.ds-editor button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- Layout ------------------------------------------------------------- */
+.ds-editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.ds-editor-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.ds-editor-side {
+  width: 300px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Stage -------------------------------------------------------------- */
+.ds-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: radial-gradient(
+    circle at 50% 0%,
+    var(--ds-surface-2),
+    var(--ds-bg)
+  );
+  overflow: hidden;
+}
+.ds-stage.ds-picking {
+  cursor: crosshair;
+}
+/* Fill the stage with a definite size so the canvas's max-height below resolves
+   against real pixels (a content-sized holder makes it circular, so the canvas
+   renders at full height and its captioned bottom edge gets clipped). */
+.ds-canvas-holder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.ds-canvas-holder canvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+.ds-crop-box {
+  position: absolute;
+  border: 2px solid var(--ds-accent);
+  background: rgba(79, 140, 255, 0.14);
+  pointer-events: none;
+}
+.ds-stage-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 12px;
+}
+
+/* --- Timeline ----------------------------------------------------------- */
+.ds-timeline {
+  display: flex;
+  height: 190px;
+  border-top: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+}
+.ds-track-labels {
+  width: 72px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--ds-border);
+}
+.ds-track-labels span {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  font-size: 11px;
+  color: var(--ds-muted);
+  border-bottom: 1px solid var(--ds-border);
+}
+.ds-ruler-spacer {
+  height: 22px !important;
+}
+.ds-timeline-scroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.ds-timeline-inner {
+  position: relative;
+  min-width: 100%;
+}
+.ds-ruler {
+  position: relative;
+  height: 22px;
+  border-bottom: 1px solid var(--ds-border);
+}
+.ds-tick {
+  position: absolute;
+  top: 4px;
+  font-size: 10px;
+  color: var(--ds-muted);
+  transform: translateX(-50%);
+}
+.ds-lane {
+  position: relative;
+  height: 42px;
+  border-bottom: 1px solid var(--ds-border);
+  background: var(--ds-track);
+}
+.ds-seg {
+  position: absolute;
+  top: 5px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+  touch-action: none;
+}
+.ds-seg-clip {
+  background: #34405a;
+}
+.ds-seg-cut {
+  background: repeating-linear-gradient(
+    45deg,
+    #5a2330,
+    #5a2330 6px,
+    #7a2f40 6px,
+    #7a2f40 12px
+  );
+}
+.ds-seg-zoom {
+  background: #2f5db0;
+}
+.ds-seg-sub {
+  background: #2f7a5b;
+}
+.ds-seg.ds-selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px var(--ds-accent);
+}
+.ds-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+  background: rgba(255, 255, 255, 0.25);
+}
+.ds-needle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ds-danger);
+  pointer-events: none;
+}
+
+/* --- Inspector + Export ------------------------------------------------- */
+.ds-inspector,
+.ds-export {
+  padding: 16px;
+  border-bottom: 1px solid var(--ds-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ds-inspector h3,
+.ds-export h3 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ds-muted);
+}
+.ds-inspector-empty p {
+  margin: 0;
+  color: var(--ds-muted);
+}
+.ds-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ds-muted);
+}
+.ds-field input[type="number"],
+.ds-field input[type="text"],
+.ds-export select {
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.ds-export-row {
+  display: flex;
+  gap: 8px;
+}
+.ds-export-row select {
+  flex: 1;
+}
+.ds-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ds-surface-2);
+  overflow: hidden;
+}
+.ds-progress-bar {
+  height: 100%;
+  background: var(--ds-accent);
+  transition: width 0.1s;
+}
+.ds-progress-label {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ds-muted);
+}
+.ds-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ds-result img,
+.ds-result video {
+  width: 100%;
+  border-radius: 8px;
+  background: #000;
+}
+.ds-result a {
+  text-align: center;
+  text-decoration: none;
+}
+
+/* --- Browse: library + mode chooser ------------------------------------- */
+.ds-browse {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 28px 24px;
+}
+.ds-library,
+.ds-mode-chooser {
+  padding: 18px 20px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+}
+.ds-library h2,
+.ds-mode-chooser h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 650;
+}
+.ds-library-list {
+  display: grid;
+  gap: 6px;
+}
+.ds-library-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px;
+  background: var(--ds-surface-2);
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.ds-library-item.ds-active {
+  border-color: var(--ds-accent);
+}
+.ds-library-details {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+.ds-library-title {
+  width: 100%;
+  padding: 4px 6px;
+  color: var(--ds-text);
+  font: inherit;
+  font-weight: 650;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+.ds-library-title:focus {
+  background: var(--ds-surface);
+  border-color: var(--ds-accent);
+  outline: none;
+}
+.ds-library-open {
+  padding: 2px 6px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--ds-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.ds-library-open:hover {
+  color: var(--ds-text);
+}
+.ds-mode-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ds-mode-hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--ds-muted);
+}
+
+/* --- Step document ------------------------------------------------------ */
+.ds-document {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.ds-document-steps {
+  display: grid;
+  gap: 16px;
+}
+.ds-document-step {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+}
+.ds-step-number {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-accent);
+}
+.ds-step-title,
+.ds-step-fields textarea {
+  width: 100%;
+  padding: 9px 11px;
+  color: var(--ds-text);
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  font: inherit;
+  outline: none;
+}
+.ds-step-title:focus,
+.ds-step-fields textarea:focus {
+  border-color: var(--ds-accent);
+}
+.ds-document-step img {
+  width: min(100%, 640px);
+  max-height: 400px;
+  object-fit: contain;
+  background: #111318;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+}
+.ds-step-fields {
+  display: grid;
+  gap: 10px;
+}
+.ds-step-fields textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+.ds-step-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ds-document-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--ds-border);
+}

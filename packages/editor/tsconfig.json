@@ -8,12 +8,12 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "outDir": "dist",
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@demoscope/timeline": ["../packages/timeline/src/index.ts"],
-      "@demoscope/browser-kit": ["../packages/browser-kit/src/index.ts"]
+      "@demoscope/timeline": ["../timeline/src/index.ts"],
+      "@demoscope/browser-kit": ["../browser-kit/src/index.ts"]
     }
   },
-  "include": ["src"]
+  "include": ["src/core"]
 }

@@ -12,6 +12,12 @@ export default defineConfig({
           new URL("./packages/schema/src/types.ts", import.meta.url)
         ),
       },
+      {
+        find: /^@demoscope\/timeline$/,
+        replacement: fileURLToPath(
+          new URL("./packages/timeline/src/index.ts", import.meta.url)
+        ),
+      },
     ],
   },
   test: {

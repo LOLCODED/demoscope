@@ -4,12 +4,12 @@
   "private": true,
   "workspaces": [
     "packages/schema",
-    "packages/runner",
-    "packages/renderer",
-    "packages/cli"
+    "packages/timeline",
+    "packages/browser-kit",
+    "packages/editor"
   ],
   "scripts": {
-    "build": "tsc --build packages/cli/tsconfig.json",
+    "build": "tsc --build packages/timeline/tsconfig.json && tsc -p packages/browser-kit/tsconfig.json && tsc -p packages/editor/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
@@ -17,6 +17,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"
+  },
+  "engines": {
+    "node": ">=20.19"
   },
   "lint-staged": {
     "*.{ts,js,mjs,cjs}": [
@@ -37,6 +40,6 @@
     "prettier": "^3.9.5",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.63.0",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.10"
   }
 }

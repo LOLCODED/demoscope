@@ -3,6 +3,7 @@ import {
   stopRecording,
   isRecording,
   getSteps,
+  type InteractionEvent,
 } from "./lib/recorder.js";
 import { exportStepFile } from "./lib/export.js";
 
@@ -54,15 +55,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
  * Called by the recorder after each interaction.
  * Sends event data to background for screenshot capture.
  */
-function onInteraction(event: {
-  action: string;
-  cursorX: number;
-  cursorY: number;
-  stepId: string;
-  annotation?: string;
-  isClick?: boolean;
-  typedText?: string;
-}): void {
+function onInteraction(event: InteractionEvent): void {
   if (!captureEnabled) return;
 
   chrome.runtime
