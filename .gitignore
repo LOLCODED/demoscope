@@ -1,8 +1,10 @@
 node_modules/
 dist/
 *.tsbuildinfo
-capture/
-rendered/
-output.*
+# CLI-era output dirs — anchored to repo root so they don't swallow source
+# dirs like extension/src/capture/.
+/capture/
+/rendered/
+/output.*
 .demoscope-capture/
 .DS_Store
