@@ -2,7 +2,13 @@
 
 # demoscope
 
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/demoscope-recorder/klabdpceilpikeogkjhcfaiflekihgoj"><img alt="Chrome Web Store" src="https://img.shields.io/badge/Chrome%20Web%20Store-install-8b5cf6?logo=googlechrome&logoColor=white"></a>
+</p>
+
 A Chrome extension that records product walkthroughs in your browser — clicks, typing, scrolling, and navigation, each captured with a screenshot — then turns them into polished **MP4/GIF videos** or **step-by-step documents**, edited entirely in the browser. No Playwright, no CLI, no server: because it records what you actually see, it works on pages behind a login.
+
+![The demoscope editor: a captured step on the canvas with a click annotation, and the recording laid out as segments on the timeline below](docs/editor.webp)
 
 ## Features
 
@@ -14,7 +20,9 @@ A Chrome extension that records product walkthroughs in your browser — clicks,
 
 ## Install
 
-The extension isn't published to the Web Store yet — build it from source and load it unpacked.
+Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/demoscope-recorder/klabdpceilpikeogkjhcfaiflekihgoj).
+
+Or build it from source and load it unpacked:
 
 ```bash
 cd extension
@@ -40,12 +48,16 @@ Then in Chrome:
 
 The preview tab opens the editor with your recording loaded.
 
+![Recording in progress, with the capture panel docked over the page being recorded](docs/recording.webp)
+
 ## Edit and export
 
 From the editor you pick an output for the recording (switch any time — the recording stays put):
 
 - **Video editor** — arrange the timeline (clips, cuts, zoom, subtitles), tune pacing and cursor motion, then export **MP4**, **GIF**, or a **`.zip`** capture bundle.
 - **Step document** — an auto-generated, editable list of steps with screenshots. Reorder, retitle, and annotate steps, then **Copy Markdown**, **Download Markdown + images**, or **Print / Save PDF**.
+
+![The same recording generated as a step-by-step document, every step with its own screenshot](docs/document.webp)
 
 ## Development
 
